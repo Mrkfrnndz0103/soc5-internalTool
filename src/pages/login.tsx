@@ -7,8 +7,8 @@ import { useAuth } from "@/contexts/auth-context"
 import { authApi, lookupApi } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
 import { LoginIllustration } from "@/components/login-illustration"
-import { Loader2, Facebook, Twitter } from "lucide-react"
-import { useEffect, useRef } from "react"
+import { Facebook, Twitter } from "lucide-react"
+import { useRef } from "react"
 import gsap from "gsap"
 
 export function LoginPage() {

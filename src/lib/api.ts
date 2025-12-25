@@ -1,12 +1,6 @@
 // API Service Layer for Supabase integration
 import { supabase } from './supabase'
 
-interface ApiResponse<T = any> {
-  data?: T
-  error?: string
-  message?: string
-}
-
 // Authentication APIs
 export const authApi = {
   async login(ops_id: string, password: string) {

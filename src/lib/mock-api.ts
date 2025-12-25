@@ -36,7 +36,7 @@ export const mockAuthApi = {
     })
   },
 
-  async googleLogin(id_token: string) {
+  async googleLogin(_id_token: string) {
     await delay()
     // Mock Google OAuth - return FTE user
     const fteUser = mockData.users.find((u) => u.role === "FTE")
@@ -54,7 +54,7 @@ export const mockAuthApi = {
     return mockResponse(null, "Google OAuth failed")
   },
 
-  async changePassword(ops_id: string, old_password: string, new_password: string) {
+  async changePassword(ops_id: string, old_password: string, _new_password: string) {
     await delay()
     const user = mockData.findUserByOpsId(ops_id)
 
@@ -112,11 +112,11 @@ export const mockLookupApi = {
 }
 
 export const mockDispatchApi = {
-  async submitRows(rows: any[], submitted_by_ops_id: string) {
+  async submitRows(rows: any[], _submitted_by_ops_id: string) {
     await delay()
 
     // Simulate validation and row creation
-    const results = rows.map((row, index) => ({
+    const results = rows.map((_row, index) => ({
       rowIndex: index,
       status: "created",
       dispatch_id: `dispatch-${Date.now()}-${index}`,
@@ -185,7 +185,7 @@ export const mockDispatchApi = {
 }
 
 export const mockHubApi = {
-  async getHubs(params?: any) {
+  async getHubs(_params?: any) {
     await delay()
     return mockResponse({
       total: mockData.hubs.length,
@@ -193,7 +193,7 @@ export const mockHubApi = {
     })
   },
 
-  async createHub(hubData: any) {
+  async createHub(_hubData: any) {
     await delay()
     return mockResponse({
       hub_id: `hub-${Date.now()}`,
@@ -201,7 +201,7 @@ export const mockHubApi = {
     })
   },
 
-  async updateHub(hub_id: string, hubData: any) {
+  async updateHub(hub_id: string, _hubData: any) {
     await delay()
     return mockResponse({
       hub_id,
@@ -209,7 +209,7 @@ export const mockHubApi = {
     })
   },
 
-  async deleteHub(hub_id: string) {
+  async deleteHub(_hub_id: string) {
     await delay()
     return mockResponse({
       message: "Hub deleted successfully",
@@ -218,7 +218,7 @@ export const mockHubApi = {
 }
 
 export const mockKpiApi = {
-  async getMDT(params?: any) {
+  async getMDT(_params?: any) {
     await delay()
     // Mock KPI data from Google Sheets
     return mockResponse({
@@ -230,7 +230,7 @@ export const mockKpiApi = {
     })
   },
 
-  async getWorkstation(params?: any) {
+  async getWorkstation(_params?: any) {
     await delay()
     return mockResponse({
       data: Array.from({ length: 20 }, (_, i) => ({
@@ -241,7 +241,7 @@ export const mockKpiApi = {
     })
   },
 
-  async getProductivity(params?: any) {
+  async getProductivity(_params?: any) {
     await delay()
     return mockResponse({
       data: {
@@ -253,7 +253,7 @@ export const mockKpiApi = {
     })
   },
 
-  async getIntraday(date?: string) {
+  async getIntraday(_date?: string) {
     await delay()
     return mockResponse({
       data: Array.from({ length: 24 }, (_, i) => ({

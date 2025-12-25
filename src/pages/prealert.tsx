@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast"
 import { dispatchApi } from "@/lib/api"
 import { formatDateTime } from "@/lib/utils"
-import { Search, Filter, Download, CheckCircle, Clock } from "lucide-react"
+import { Search, Download, CheckCircle } from "lucide-react"
 
 interface DispatchEntry {
   dispatch_id: string
@@ -51,6 +51,7 @@ export function PrealertPage() {
 
   useEffect(() => {
     loadEntries()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, filters])
 
   const loadEntries = async () => {

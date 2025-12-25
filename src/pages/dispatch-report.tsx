@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/contexts/auth-context"
 import { dispatchApi, lookupApi } from "@/lib/api"
-import { Plus, Trash2, Save, Send, Loader2 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Plus, Trash2, Save, Send, Loader2, Eye, EyeOff } from "lucide-react"
 
 interface DispatchRow {
   id: string
@@ -26,8 +25,7 @@ interface DispatchRow {
   plate_number: string
   fleet_size: string
   assigned_ops_id: string
-  assigned_ops_name?: string
-  notes?: string
+  assigned_ops_name: string
 }
 
 const emptyRow = (): DispatchRow => ({
@@ -46,7 +44,7 @@ const emptyRow = (): DispatchRow => ({
   plate_number: "",
   fleet_size: "4WH",
   assigned_ops_id: "",
-  notes: "",
+  assigned_ops_name: "",
 })
 
 const FLEET_SIZES = ["4WH", "6W", "6WF", "10WH", "CV"]
@@ -60,6 +58,9 @@ export function DispatchReportPage() {
   const [loading, setLoading] = useState(false)
   const [clusterSuggestions, setClusterSuggestions] = useState<any[]>([])
   const [activeCell, setActiveCell] = useState<string | null>(null)
+  const [showLHTrip, setShowLHTrip] = useState(true)
+  const [showPlate, setShowPlate] = useState(true)
+  const [showFleet, setShowFleet] = useState(true)
 
   const getDraftKey = () => {
     const sessionId = sessionStorage.getItem("session_id") || crypto.randomUUID()
@@ -84,6 +85,7 @@ export function DispatchReportPage() {
         console.error("Failed to load draft:", error)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -91,6 +93,7 @@ export function DispatchReportPage() {
       saveDraft()
     }, AUTOSAVE_INTERVAL)
     return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows])
 
   const saveDraft = useCallback(() => {
@@ -100,6 +103,7 @@ export function DispatchReportPage() {
       last_saved_at: new Date().toISOString(),
     }
     localStorage.setItem(draftKey, JSON.stringify(draft))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows])
 
   const addRow = () => {
@@ -132,7 +136,11 @@ export function DispatchReportPage() {
         if (row.id !== id) return row
         const updatedRow = { ...row, [field]: value }
         if (field === "lh_trip" && typeof value === "string") {
-          updatedRow.lh_trip = value.toUpperCase()
+          if (value && !value.startsWith("LT")) {
+            updatedRow.lh_trip = "LT" + value.replace(/^LT/i, "").toUpperCase()
+          } else {
+            updatedRow.lh_trip = value.toUpperCase()
+          }
         }
         if (field === "plate_number" && typeof value === "string") {
           updatedRow.plate_number = value.toUpperCase()
@@ -159,9 +167,9 @@ export function DispatchReportPage() {
   }
 
   const handleClusterSelect = async (id: string, cluster: any) => {
-    updateRow(id, "cluster_name", cluster.name)
+    updateRow(id, "cluster_name", cluster.cluster_name)
     updateRow(id, "region", cluster.region)
-    const hubResponse = await lookupApi.getHubs(cluster.name)
+    const hubResponse = await lookupApi.getHubs(cluster.cluster_name)
     if (hubResponse.data && Array.isArray(hubResponse.data)) {
       const hubs = hubResponse.data
       if (hubs.length > 0) {
@@ -171,6 +179,17 @@ export function DispatchReportPage() {
     }
     setClusterSuggestions([])
     setActiveCell(null)
+  }
+
+  const handleOpsIdChange = async (id: string, value: string) => {
+    const upperValue = value.toUpperCase()
+    updateRow(id, "assigned_ops_id", upperValue)
+    if (upperValue.length >= 3) {
+      const response = await lookupApi.getUser(upperValue)
+      if (response.data) {
+        updateRow(id, "assigned_ops_name", response.data.name)
+      }
+    }
   }
 
   const validateRows = (): boolean => {
@@ -188,6 +207,38 @@ export function DispatchReportPage() {
           variant: "destructive",
           title: "Validation failed",
           description: "Please confirm dock number for all rows.",
+        })
+        return false
+      }
+      if (!row.actual_docked_time || !row.actual_depart_time) {
+        toast({
+          variant: "destructive",
+          title: "Validation failed",
+          description: "Docked and depart times are required.",
+        })
+        return false
+      }
+      if (new Date(row.actual_depart_time) < new Date(row.actual_docked_time)) {
+        toast({
+          variant: "destructive",
+          title: "Validation failed",
+          description: "Depart time must be after docked time.",
+        })
+        return false
+      }
+      if (!row.processor_name || !row.assigned_ops_id) {
+        toast({
+          variant: "destructive",
+          title: "Validation failed",
+          description: "Processor name and assigned OPS ID are required.",
+        })
+        return false
+      }
+      if (row.lh_trip && !row.lh_trip.startsWith("LT")) {
+        toast({
+          variant: "destructive",
+          title: "Validation failed",
+          description: "LH Trip must start with LT.",
         })
         return false
       }
@@ -227,7 +278,20 @@ export function DispatchReportPage() {
       <Card className="card-shadow-lg">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <div />
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowLHTrip(!showLHTrip)}>
+                {showLHTrip ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
+                LH Trip
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowPlate(!showPlate)}>
+                {showPlate ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
+                Plate #
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowFleet(!showFleet)}>
+                {showFleet ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
+                Fleet
+              </Button>
+            </div>
             <Button variant="outline" size="sm" onClick={saveDraft}>
               <Save className="mr-2 h-4 w-4" />
               Save Draft
@@ -249,7 +313,9 @@ export function DispatchReportPage() {
                   <th className="p-2.5 text-left text-xs font-bold uppercase tracking-wider">Dock #</th>
                   <th className="p-2.5 text-left text-xs font-bold uppercase tracking-wider min-w-[180px]">Depart Time</th>
                   <th className="p-2.5 text-left text-xs font-bold uppercase tracking-wider min-w-[150px]">Processor</th>
-                  <th className="p-2.5 text-left text-xs font-bold uppercase tracking-wider">Fleet</th>
+                  {showLHTrip && <th className="p-2.5 text-left text-xs font-bold uppercase tracking-wider">LH Trip</th>}
+                  {showPlate && <th className="p-2.5 text-left text-xs font-bold uppercase tracking-wider">Plate #</th>}
+                  {showFleet && <th className="p-2.5 text-left text-xs font-bold uppercase tracking-wider">Fleet</th>}
                   <th className="p-2.5 text-left text-xs font-bold uppercase tracking-wider">Ops ID</th>
                   <th className="p-2.5 text-left text-xs font-bold uppercase tracking-wider">Actions</th>
                 </tr>
@@ -273,7 +339,7 @@ export function DispatchReportPage() {
                               className="p-2 text-sm hover:bg-accent cursor-pointer rounded transition-colors"
                               onClick={() => handleClusterSelect(row.id, cluster)}
                             >
-                              {cluster.name} - {cluster.region}
+                              {cluster.cluster_name} - {cluster.region}
                             </div>
                           ))}
                         </div>
@@ -343,26 +409,51 @@ export function DispatchReportPage() {
                         className="h-8 text-sm"
                       />
                     </td>
-                    <td className="p-2.5">
-                      <Select value={row.fleet_size} onValueChange={(value) => updateRow(row.id, "fleet_size", value)}>
-                        <SelectTrigger className="h-8 w-20 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {FLEET_SIZES.map((size) => (
-                            <SelectItem key={size} value={size}>
-                              {size}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
+                    {showLHTrip && (
+                      <td className="p-2.5">
+                        <Input
+                          value={row.lh_trip}
+                          onChange={(e) => updateRow(row.id, "lh_trip", e.target.value)}
+                          placeholder="LT..."
+                          className="h-8 w-24 text-sm"
+                        />
+                      </td>
+                    )}
+                    {showPlate && (
+                      <td className="p-2.5">
+                        <Input
+                          value={row.plate_number}
+                          onChange={(e) => updateRow(row.id, "plate_number", e.target.value)}
+                          className="h-8 w-24 text-sm"
+                        />
+                      </td>
+                    )}
+                    {showFleet && (
+                      <td className="p-2.5">
+                        <Select value={row.fleet_size} onValueChange={(value) => updateRow(row.id, "fleet_size", value)}>
+                          <SelectTrigger className="h-8 w-20 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {FLEET_SIZES.map((size) => (
+                              <SelectItem key={size} value={size}>
+                                {size}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                    )}
                     <td className="p-2.5">
                       <Input
                         value={row.assigned_ops_id}
-                        onChange={(e) => updateRow(row.id, "assigned_ops_id", e.target.value)}
+                        onChange={(e) => handleOpsIdChange(row.id, e.target.value)}
                         className="h-8 w-24 text-sm"
+                        placeholder="OPS ID"
                       />
+                      {row.assigned_ops_name && (
+                        <div className="text-xs text-muted-foreground mt-1">{row.assigned_ops_name}</div>
+                      )}
                     </td>
                     <td className="p-2.5">
                       <Button

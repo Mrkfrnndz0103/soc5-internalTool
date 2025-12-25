@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { ThemePresetSelector } from "@/components/theme-preset-selector"
 import { ChatPopup } from "@/components/chat-popup"
 import { useAuth } from "@/contexts/auth-context"
-import { ScrollArea } from "@/components/ui/scroll-area"
+
 import {
   DropdownMenu,
   DropdownMenuContent,
