@@ -1,9 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
-import { AuthProvider, useAuth } from "@/contexts/auth-context"
+import { AuthProvider } from "@/contexts/auth-context"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { Layout } from "@/components/layout"
-import { LoginPage } from "@/pages/login"
+import { LoginModal } from "@/components/login-modal"
 import { DashboardPage } from "@/pages/dashboard"
 import { DispatchReportPage } from "@/pages/dispatch-report"
 import { PrealertPage } from "@/pages/prealert"
@@ -22,32 +22,12 @@ function PlaceholderPage({ title }: { title: string }) {
   )
 }
 
-// Protected route wrapper
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth()
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />
-  }
-
-  return <>{children}</>
-}
 
 function AppRoutes() {
   return (
     <Routes>
-      {/* Public routes */}
-      <Route path="/login" element={<LoginPage />} />
-
-      {/* Protected routes */}
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
+      <Route path="/" element={<Layout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
 
@@ -86,6 +66,7 @@ function App() {
     <BrowserRouter>
       <ThemeProvider defaultTheme="light" storageKey="outbound-theme">
         <AuthProvider>
+          <LoginModal />
           <AppRoutes />
           <Toaster />
         </AuthProvider>

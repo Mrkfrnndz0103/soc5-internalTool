@@ -107,6 +107,261 @@
     }
   }
 
+  /* Login Modal Animations */
+  .modal-backdrop {
+    animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .modal-container {
+    animation: modalSlowZoom 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98));
+    backdrop-filter: blur(20px);
+    border-radius: 32px;
+    box-shadow: 
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 20px 60px rgba(0, 0, 0, 0.5),
+      0 0 100px rgba(59, 130, 246, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    position: relative;
+  }
+
+  .modal-container::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 32px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      transparent,
+      rgba(255, 255, 255, 0.4),
+      rgba(255, 255, 255, 0.6),
+      transparent,
+      transparent
+    );
+    background-size: 200% 100%;
+    animation: borderRun 5s linear infinite;
+    z-index: -1;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    padding: 3px;
+    filter: blur(8px);
+  }
+
+  @keyframes borderRun {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes modalSlowZoom {
+    0% { 
+      transform: scale(0.8) translateY(30px);
+      opacity: 0;
+    }
+    100% { 
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Button Animations */
+  .login-button {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+  }
+
+  .login-button .button-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 1));
+    border-radius: inherit;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .login-button:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .login-button.active {
+    transform: scale(1.05);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 
+      0 12px 32px rgba(0, 0, 0, 0.3),
+      0 0 0 4px rgba(255, 255, 255, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .login-button.active .button-bg {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .login-button.active {
+    color: rgb(15, 23, 42);
+  }
+
+  /* QR Content Animation */
+  .qr-content {
+    animation: slideInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .qr-wrapper {
+    background: white;
+    padding: 24px;
+    border-radius: 24px;
+    display: inline-block;
+    box-shadow: 
+      0 20px 60px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 0 80px rgba(59, 130, 246, 0.2);
+    animation: qrPulse 2s ease-in-out infinite;
+    transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .qr-wrapper:hover {
+    transform: scale(1.12);
+    box-shadow: 
+      0 30px 90px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.4),
+      0 0 180px rgba(139, 92, 246, 0.6);
+  }
+
+  .qr-placeholder {
+    animation: placeholderPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes placeholderPulse {
+    0%, 100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.05);
+    }
+  }
+
+  @keyframes slideInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes qrPulse {
+    0%, 100% {
+      box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.1),
+        0 0 80px rgba(59, 130, 246, 0.2);
+    }
+    50% {
+      box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.1),
+        0 0 100px rgba(59, 130, 246, 0.4);
+    }
+  }
+
+  /* Password Form Animation */
+  .password-form {
+    animation: slideInRight 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Chat Box */
+  .chat-box {
+    width: 380px;
+    background: linear-gradient(135deg, 
+      rgba(100, 116, 139, 0.2) 0%,
+      rgba(71, 85, 105, 0.25) 100%);
+    backdrop-filter: blur(40px) saturate(180%);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+      0 20px 60px rgba(0, 0, 0, 0.4),
+      0 0 80px rgba(59, 130, 246, 0.2);
+    animation: chatSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes chatSlideIn {
+    from {
+      transform: translateY(100%) scale(0.9);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Truck Animation */
+  .truck-moving {
+    animation: truckBounce 2s ease-in-out infinite;
+  }
+
+  .motion-line-1 {
+    animation: motionLine 1.5s ease-in-out infinite;
+  }
+
+  .motion-line-2 {
+    animation: motionLine 1.5s ease-in-out infinite 0.3s;
+  }
+
+  @keyframes truckBounce {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-3px);
+    }
+  }
+
+  @keyframes motionLine {
+    0% {
+      opacity: 0.6;
+      transform: translateX(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+  }
+
   .card-shadow {
     box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
   }
