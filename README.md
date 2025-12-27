@@ -13,7 +13,7 @@ Enterprise-grade web application built with the Backstage Design System for mana
 - **Midmile Operations** - Truck request management
 
 ### Key Features
-- ✅ Dual authentication (Backroom with Ops ID + FTE with Google OAuth)
+- ✅ Simple password-based authentication
 - ✅ Dark/Light theme support
 - ✅ Collapsible sidebar with nested menus
 - ✅ Real-time form validation
@@ -87,7 +87,6 @@ This application uses Supabase as the backend database with direct client integr
    ```
    VITE_SUPABASE_URL=https://your-project.supabase.co
    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   VITE_GOOGLE_CLIENT_ID=your_google_client_id
    ```
 
 4. **Google Sheets Integration**
@@ -135,7 +134,8 @@ Google Sheets (Dispatch Reports)
 
    Edit `.env` and configure:
    - `VITE_API_BASE_URL` - Your backend API URL
-   - `VITE_GOOGLE_CLIENT_ID` - Google OAuth client ID (for FTE login)
+   - `VITE_SUPABASE_URL` - Your Supabase project URL
+   - `VITE_SUPABASE_ANON_KEY` - Your Supabase anonymous key
 
 4. **Run the development server**
    ```bash
@@ -157,17 +157,9 @@ The built files will be in the `dist` directory.
 
 ### Login
 
-**Backroom Users:**
-1. Select "Backroom" role
-2. Enter your Ops ID
-3. Name will auto-populate
-4. Enter password (first-time default: `SOC5-Outbound`)
-5. Change password if prompted
-
-**FTE Users:**
-1. Select "FTE" role
-2. Click "Sign in with Google"
-3. Authenticate with company Google account
+1. Enter your Ops ID or username
+2. Enter your password (first-time default: `SOC5-Outbound`)
+3. Change password if prompted
 
 ### Dispatch Report
 
@@ -263,7 +255,6 @@ Use the existing component patterns in `src/components/ui/` as templates.
 
 ### Environment Variables (Production)
 - Set `VITE_API_BASE_URL` to your production API
-- Configure Google OAuth with production credentials
 - Set up CORS on your backend for the production domain
 
 ### Hosting Options
@@ -281,11 +272,6 @@ Use the existing component patterns in `src/components/ui/` as templates.
 - Verify `VITE_API_BASE_URL` in `.env`
 - Check network tab in browser DevTools
 - Ensure backend is running and CORS is configured
-
-### Google OAuth Not Working
-- Verify `VITE_GOOGLE_CLIENT_ID` is correct
-- Check redirect URIs in Google Cloud Console
-- Ensure domain is added to authorized origins
 
 ## Documentation
 

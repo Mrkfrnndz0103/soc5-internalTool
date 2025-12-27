@@ -331,34 +331,102 @@
 
   /* Truck Animation */
   .truck-moving {
-    animation: truckBounce 2s ease-in-out infinite;
+    animation: truckDrive 2.5s ease-in-out infinite;
+  }
+
+  .truck-shadow {
+    animation: shadowMove 2.5s ease-in-out infinite;
+  }
+
+  .motion-lines-container {
+    position: relative;
+    width: 30px;
+    height: 50px;
+    margin-right: -10px;
+  }
+
+  .motion-line {
+    position: absolute;
+    height: 2px;
+    background: linear-gradient(to right, transparent, #60a5fa, transparent);
+    border-radius: 2px;
   }
 
   .motion-line-1 {
-    animation: motionLine 1.5s ease-in-out infinite;
+    width: 20px;
+    top: 15px;
+    animation: motionLineMove 0.8s ease-out infinite;
   }
 
   .motion-line-2 {
-    animation: motionLine 1.5s ease-in-out infinite 0.3s;
+    width: 25px;
+    top: 25px;
+    animation: motionLineMove 0.8s ease-out infinite 0.15s;
   }
 
-  @keyframes truckBounce {
+  .motion-line-3 {
+    width: 18px;
+    top: 35px;
+    animation: motionLineMove 0.8s ease-out infinite 0.3s;
+  }
+
+  .dust-1 {
+    animation: dustFade 1s ease-out infinite;
+  }
+
+  .dust-2 {
+    animation: dustFade 1s ease-out infinite 0.2s;
+  }
+
+  .dust-3 {
+    animation: dustFade 1s ease-out infinite 0.4s;
+  }
+
+  @keyframes truckDrive {
     0%, 100% {
-      transform: translateY(0);
+      transform: translateY(0) translateX(0);
+    }
+    25% {
+      transform: translateY(-3px) translateX(2px);
     }
     50% {
-      transform: translateY(-3px);
+      transform: translateY(0) translateX(3px);
+    }
+    75% {
+      transform: translateY(-2px) translateX(1px);
     }
   }
 
-  @keyframes motionLine {
+  @keyframes shadowMove {
+    0%, 100% {
+      transform: scaleX(1);
+      opacity: 0.2;
+    }
+    50% {
+      transform: scaleX(0.9);
+      opacity: 0.15;
+    }
+  }
+
+  @keyframes motionLineMove {
     0% {
-      opacity: 0.6;
+      opacity: 0.7;
       transform: translateX(0);
     }
     100% {
       opacity: 0;
-      transform: translateX(-10px);
+      transform: translateX(-20px);
+    }
+  }
+
+  @keyframes dustFade {
+    0% {
+      opacity: 0.5;
+      transform: translateX(0) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(-15px) scale(1.8);
     }
   }
 

@@ -12,21 +12,32 @@ export const authApi = {
     return { data }
   },
 
-  async googleLogin(id_token: string) {
-    const { data, error } = await supabase.auth.signInWithIdToken({
-      provider: 'google',
-      token: id_token
-    })
-    if (error) return { error: error.message }
-    return { data }
-  },
-
   async changePassword(ops_id: string, old_password: string, new_password: string) {
     const { data, error } = await supabase.rpc('change_user_password', {
       p_ops_id: ops_id,
       p_old_password: old_password,
       p_new_password: new_password
     })
+    if (error) return { error: error.message }
+    return { data }
+  },
+
+  async getUserById(userId: string) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single()
+    if (error) return { error: error.message }
+    return { data }
+  },
+
+  async getUser(ops_id: string) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('ops_id', ops_id)
+      .single()
     if (error) return { error: error.message }
     return { data }
   },

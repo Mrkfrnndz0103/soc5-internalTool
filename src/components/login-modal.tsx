@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { authApi } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
-import { Mail, Eye, EyeOff, QrCode, Smartphone, MessageCircle, X, Send } from "lucide-react"
+import { Mail, Eye, EyeOff, QrCode, MessageCircle, X, Send } from "lucide-react"
 
 export function LoginModal() {
   const [method, setMethod] = useState<"qr" | "password" | null>(null)
@@ -10,7 +10,6 @@ export function LoginModal() {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [qrCode, setQrCode] = useState("")
   const [showModal, setShowModal] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [chatMessage, setChatMessage] = useState("")
@@ -22,14 +21,6 @@ export function LoginModal() {
     const timer = setTimeout(() => setShowModal(true), 500)
     return () => clearTimeout(timer)
   }, [])
-
-  useEffect(() => {
-    if (method === "qr") {
-      setTimeout(() => {
-        setQrCode(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin + "/auth/" + Date.now())}`)
-      }, 300)
-    }
-  }, [method])
 
   if (isAuthenticated) {
     return null
@@ -79,24 +70,6 @@ export function LoginModal() {
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-white/10">
             <h2 className="text-2xl font-semibold text-white">Please select login method</h2>
-            <div className="flex items-center gap-2">
-              <svg width="60" height="40" viewBox="0 0 60 40" className="truck-moving">
-                {/* Truck body */}
-                <rect x="20" y="15" width="30" height="15" rx="2" fill="#60a5fa" />
-                {/* Truck cabin */}
-                <rect x="35" y="8" width="15" height="7" fill="#3b82f6" />
-                {/* Window */}
-                <rect x="37" y="10" width="5" height="3" fill="#93c5fd" opacity="0.6" />
-                {/* Wheels */}
-                <circle cx="28" cy="32" r="4" fill="#1e293b" />
-                <circle cx="28" cy="32" r="2" fill="#475569" />
-                <circle cx="44" cy="32" r="4" fill="#1e293b" />
-                <circle cx="44" cy="32" r="2" fill="#475569" />
-                {/* Motion lines */}
-                <line x1="5" y1="20" x2="15" y2="20" stroke="#60a5fa" strokeWidth="1.5" opacity="0.4" className="motion-line-1" />
-                <line x1="8" y1="25" x2="16" y2="25" stroke="#60a5fa" strokeWidth="1.5" opacity="0.4" className="motion-line-2" />
-              </svg>
-            </div>
           </div>
 
           <div className="flex">
@@ -153,22 +126,11 @@ export function LoginModal() {
 
               {method === "qr" && (
                 <div className="text-center qr-content">
-                  <div className="qr-wrapper group cursor-pointer">
-                    {!qrCode && (
-                      <div className="w-48 h-48 flex items-center justify-center">
-                        <div className="qr-placeholder">
-                          <QrCode className="w-24 h-24 text-purple-400/40" />
-                          <div className="mt-2 text-sm text-gray-400">Loading...</div>
-                        </div>
-                      </div>
-                    )}
-                    {qrCode && <img src={qrCode} alt="QR Code" className="w-48 h-48 qr-image" />}
+                  <div className="w-48 h-48 bg-white/10 rounded-2xl flex items-center justify-center mb-6">
+                    <QrCode className="w-24 h-24 text-white/40" />
                   </div>
-                  <p className="text-white mt-6 font-medium">Scan with your phone's camera</p>
-                  <div className="flex items-center justify-center gap-3 mt-6 text-white/60">
-                    <Smartphone className="w-5 h-5" />
-                    <span className="text-sm">Point your camera at the QR code</span>
-                  </div>
+                  <p className="text-white mb-4 font-medium">QR Code Authentication</p>
+                  <p className="text-white/60 text-sm">Feature coming soon...</p>
                 </div>
               )}
 
@@ -243,7 +205,7 @@ export function LoginModal() {
             <div className="p-4 space-y-3">
               <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
                 <p className="text-sm text-white/90">Hi! How can we help you today?</p>
-                <p className="text-xs text-white/60 mt-1">Data Team • Online</p>
+                <p className="text-xs text-white/60 mt-1">Data Team - Online</p>
               </div>
               <textarea
                 value={chatMessage}

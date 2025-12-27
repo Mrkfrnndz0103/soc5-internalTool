@@ -69,6 +69,21 @@ export const mockAuthApi = {
     // In real implementation, this would update the database
     return mockResponse({ message: "Password updated successfully" })
   },
+
+  async getUserById(_userId: string) {
+    await delay()
+    const user = mockData.users[0]
+    return mockResponse(user)
+  },
+
+  async getUser(ops_id: string) {
+    await delay()
+    const user = mockData.findUserByOpsId(ops_id)
+    if (!user) {
+      return mockResponse(null, "User not found")
+    }
+    return mockResponse(user)
+  },
 }
 
 export const mockLookupApi = {
