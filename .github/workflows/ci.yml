@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, deps/audit-fix-force, feat/** ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm run test:run
+
+      - name: Build (production)
+        run: npm run build
+
+      - name: NPM Audit (production)
+        run: npm audit --production --audit-level=high
+        # If audit finds high/critical issues this job will fail and require attention.
