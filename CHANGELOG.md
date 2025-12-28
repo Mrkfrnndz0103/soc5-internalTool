@@ -144,6 +144,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **SeaTalk QR Authentication**
+  - QR code-based login for FTE users via SeaTalk mobile app
+  - Session-based authentication with 5-minute expiry
+  - Real-time polling (2-second intervals) for authentication status
+  - Automatic email retrieval from SeaTalk account
+  - Google Apps Script webhook handler for mobile callbacks
+  - Database table for temporary auth sessions
+  - Auto-cleanup function for expired sessions
+  - Email domain validation (@shopeemobile-external.com)
+  - Cryptographically secure session IDs
+  - One-time use session tokens
+
+### Changed
+- **Authentication System**
+  - Replaced Google OAuth with SeaTalk QR authentication for FTE users
+  - Backroom users now login with email instead of Ops ID
+  - Removed password requirement for FTE users
+  - Updated login UI with QR code display and polling indicator
+
+### Documentation
+- Added comprehensive SeaTalk authentication setup guide
+- Added visual flow diagrams for authentication process
+- Added quick reference guide for developers
+- Updated README with new authentication method
+- Updated troubleshooting section for SeaTalk issues
+
 ### Planned Features
 - Google OAuth integration (live)
 - Real-time updates via WebSocket

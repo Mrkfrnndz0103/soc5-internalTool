@@ -6,8 +6,8 @@
  */
 
 // Configuration
-const SUPABASE_URL = 'https://your-project.supabase.co'
-const SUPABASE_KEY = 'your_supabase_anon_key'
+const SUPABASE_URL = 'https://odhwninwonguhkbbeeza.supabase.co'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kaHduaW53b25ndWhrYmJlZXphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1OTMyMjEsImV4cCI6MjA4MjE2OTIyMX0.F41DUv8hBdE08H5i09ofkvTywa8t7OnbrpdHW9Hjb-A'
 
 // Sheet names
 const USERS_SHEET = 'Users'

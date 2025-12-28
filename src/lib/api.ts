@@ -12,6 +12,25 @@ export const authApi = {
     return { data }
   },
 
+  async createSeatalkSession(session_id: string) {
+    const { error } = await supabase
+      .from('seatalk_sessions')
+      .insert({ session_id })
+    if (error) return { error: error.message }
+    return { data: { success: true } }
+  },
+
+  async checkSeatalkAuth(session_id: string) {
+    const { data, error } = await supabase
+      .from('seatalk_sessions')
+      .select('email, authenticated')
+      .eq('session_id', session_id)
+      .eq('authenticated', true)
+      .single()
+    if (error) return { data: null }
+    return { data }
+  },
+
   async googleLogin(id_token: string) {
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: 'google',

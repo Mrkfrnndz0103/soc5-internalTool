@@ -1,26 +1,87 @@
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { authApi } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
-import { Mail, Eye, EyeOff } from "lucide-react"
+import { QrCode, MessageCircle, X, CheckCircle2 } from "lucide-react"
 
-export function LoginPage() {
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
+interface LoginModalProps {
+  isOpen: boolean
+}
+
+export function LoginModal({ isOpen }: LoginModalProps) {
+  const [email, setEmail] = useState("")
+  const [qrCode, setQrCode] = useState("")
   const [loading, setLoading] = useState(false)
+  const [isQrZoomed, setIsQrZoomed] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  const [helpMessage, setHelpMessage] = useState("")
+  const [sessionId, setSessionId] = useState("")
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   const { login } = useAuth()
-  const navigate = useNavigate()
   const { toast } = useToast()
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+  useEffect(() => {
+    if (isOpen) {
+      const newSessionId = `seatalk-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      setSessionId(newSessionId)
+      
+      // Create session in database
+      createSession(newSessionId)
+      
+      setQrCode(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`seatalk://auth/soc5-outbound?session=${newSessionId}`)}`)
+      startPolling(newSessionId)
+    }
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current)
+    }
+  }, [isOpen])
 
-    const response = await authApi.login(username, password)
+  const createSession = async (sid: string) => {
+    await authApi.createSeatalkSession(sid)
+  }
+
+  const startPolling = (sid: string) => {
+    pollingRef.current = setInterval(async () => {
+      const response = await authApi.checkSeatalkAuth(sid)
+      if (response.data?.authenticated && response.data?.email) {
+        if (pollingRef.current) clearInterval(pollingRef.current)
+        await handleSeatalkLogin(response.data.email)
+      }
+    }, 2000)
+  }
+
+  const handleSeatalkLogin = async (email: string) => {
+    const response = await authApi.login(email, "")
+    if (response.error) {
+      toast({
+        variant: "destructive",
+        title: "Login failed",
+        description: response.error,
+      })
+      return
+    }
+    if (response.data) {
+      login(response.data.user, response.data.token)
+      setShowSuccess(true)
+    }
+  }
+
+  const handleBackroomLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!email.endsWith("@shopeemobile-external.com")) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email",
+        description: "Only @shopeemobile-external.com emails are allowed.",
+      })
+      return
+    }
+
+    setLoading(true)
+    const response = await authApi.login(email, "")
     setLoading(false)
 
     if (response.error) {
@@ -34,197 +95,235 @@ export function LoginPage() {
 
     if (response.data) {
       login(response.data.user, response.data.token)
-
-      if (response.data.must_change_password) {
-        toast({
-          title: "Password change required",
-          description: "You must change your password before continuing.",
-        })
-        navigate("/change-password")
-        return
-      }
-
-      navigate("/dashboard")
+      setShowSuccess(true)
     }
   }
 
+  const handleQrClick = () => {
+    setIsQrZoomed(true)
+    setTimeout(() => setIsQrZoomed(false), 5000)
+  }
+
+  const handleSendHelp = () => {
+    if (helpMessage.trim()) {
+      toast({
+        title: "Message Sent",
+        description: "Your message has been sent to the Data Team. They will respond shortly.",
+      })
+      setHelpMessage("")
+      setShowHelp(false)
+    }
+  }
+
+  if (!isOpen) return null
+
+  // Success animation overlay
+  if (showSuccess) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-md animate-in fade-in duration-300"></div>
+        <div className="relative animate-in zoom-in-50 fade-in duration-500">
+          <div className="relative">
+            {/* Animated success rings */}
+            <div className="absolute inset-0 -m-20">
+              <div className="absolute inset-0 border-4 border-green-500/30 rounded-full animate-ping"></div>
+              <div className="absolute inset-0 border-4 border-green-500/20 rounded-full animate-pulse"></div>
+            </div>
+            
+            {/* Success icon */}
+            <div className="relative bg-gradient-to-br from-green-500 to-green-600 rounded-full p-8 shadow-2xl">
+              <CheckCircle2 className="w-24 h-24 text-white animate-in zoom-in-50 duration-700" />
+            </div>
+          </div>
+          
+          {/* Success text */}
+          <div className="text-center mt-8 animate-in slide-in-from-bottom-4 fade-in duration-500 delay-300">
+            <h2 className="text-4xl font-bold text-white mb-2">Login Successful!</h2>
+            <p className="text-gray-300 text-lg">Welcome back to SOC5 Outbound</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-[#e8e8e8] relative">
-      {/* Top left corner */}
-      <div className="absolute top-0 left-0 w-[200px] h-[200px] bg-[#5a8a8f]" 
-           style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}></div>
-      
-      {/* Bottom right corner */}
-      <div className="absolute bottom-0 right-0 w-[400px] h-[600px] bg-[#5a8a8f]"></div>
+    <>
+      {/* Main Login Modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        {/* Backdrop with fade-in */}
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-500"></div>
 
-      <div className="min-h-screen flex items-center justify-center p-8">
-        <div className="relative w-full max-w-6xl">
-          {/* Main card with diagonal split */}
-          <div className="relative bg-white rounded-[40px] shadow-2xl overflow-hidden" style={{ minHeight: '600px' }}>
-            <div className="flex">
-              {/* Left side - Form */}
-              <div className="w-1/2 p-16 relative z-10">
-                {/* Paper plane */}
-                <div className="absolute top-8 right-8">
-                  <svg width="100" height="80" viewBox="0 0 100 80" fill="none">
-                    <path d="M20 50 L60 20 L25 35 Z" stroke="#333" strokeWidth="2" fill="white"/>
-                    <path d="M60 20 Q75 12 82 5" stroke="#333" strokeWidth="1.5" strokeDasharray="4 4" fill="none"/>
-                    <circle cx="85" cy="3" r="4" fill="#5a8a8f"/>
-                  </svg>
+        {/* Modal with scale and fade animation */}
+        <div className="relative w-full max-w-3xl mx-4 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-500">
+          {/* Main card with shadow pulse */}
+          <div className="bg-[#252836] rounded-2xl shadow-2xl overflow-hidden animate-shadow-pulse">
+            {/* Header with slide down */}
+            <div className="text-center py-6 px-6 animate-in slide-in-from-top-4 duration-500 delay-150">
+              <h1 className="text-2xl font-semibold text-white mb-1">Login to continue</h1>
+              <p className="text-sm text-gray-400">Scan QR code with SeaTalk (FTE) or enter email (Backroom)</p>
+            </div>
+
+            <div className="flex items-center justify-center px-8 pb-8 gap-8">
+              {/* Left side - QR Code for FTE */}
+              <div className="flex-1 flex flex-col items-center justify-center animate-in zoom-in-50 duration-700 delay-300">
+                <div className="relative group">
+                  {/* Animated rotating border rings */}
+                  <div className="absolute -inset-3 bg-gradient-to-r from-[#5a8a8f] via-[#6ac4d0] to-[#5a8a8f] rounded-3xl blur-lg opacity-60 animate-spin-slow"></div>
+                  <div className="absolute -inset-2 bg-gradient-to-l from-[#4a7a7f] via-[#5a8a8f] to-[#4a7a7f] rounded-3xl blur opacity-80 animate-spin-reverse"></div>
+                  
+                  {/* QR Container */}
+                  <div 
+                    onClick={handleQrClick}
+                    className={`relative bg-gradient-to-br from-white via-gray-50 to-white p-5 rounded-2xl shadow-2xl transform transition-all duration-500 border-2 border-white/50 cursor-pointer ${
+                      isQrZoomed ? 'scale-150' : 'group-hover:scale-105'
+                    }`}
+                  >
+                    {/* Corner decorations */}
+                    <div className="absolute top-1 left-1 w-6 h-6 border-t-3 border-l-3 border-[#5a8a8f] rounded-tl-xl"></div>
+                    <div className="absolute top-1 right-1 w-6 h-6 border-t-3 border-r-3 border-[#5a8a8f] rounded-tr-xl"></div>
+                    <div className="absolute bottom-1 left-1 w-6 h-6 border-b-3 border-l-3 border-[#5a8a8f] rounded-bl-xl"></div>
+                    <div className="absolute bottom-1 right-1 w-6 h-6 border-b-3 border-r-3 border-[#5a8a8f] rounded-br-xl"></div>
+                    
+                    {/* Inner glow effect */}
+                    <div className="absolute inset-2 bg-gradient-to-br from-[#5a8a8f]/10 to-transparent rounded-xl"></div>
+                    
+                    {qrCode ? (
+                      <img src={qrCode} alt="QR Code" className="w-40 h-40 relative z-10 rounded-lg animate-in zoom-in-50 duration-500 delay-500" />
+                    ) : (
+                      <div className="w-40 h-40 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg">
+                        <QrCode className="w-24 h-24 text-[#5a8a8f] animate-pulse" />
+                      </div>
+                    )}
+                    
+                    {/* Scan indicator */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-[#5a8a8f]/50 to-transparent animate-scan"></div>
+                    </div>
+                  </div>
                 </div>
+                <div className="mt-4 text-center">
+                  <h3 className="text-white text-base font-semibold mb-1">Use SeaTalk App to Scan QR</h3>
+                  <p className="text-gray-400 text-xs max-w-xs">
+                    Open SeaTalk mobile app and scan to authenticate
+                  </p>
+                </div>
+              </div>
 
-                <h2 className="text-3xl font-semibold text-[#5a8a8f] mb-12 mt-8">Login to your account</h2>
-
-                <form onSubmit={handleLogin} className="space-y-8">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">Enter User Name :</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="enteremail123@gmail.com"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        className="w-full px-4 py-3 pr-12 border-b-2 border-gray-300 focus:border-[#5a8a8f] outline-none bg-transparent text-gray-700"
-                        required
-                      />
-                      <Mail className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    </div>
+              {/* Divider with running glow */}
+              <div className="flex items-center justify-center relative animate-in fade-in duration-800 delay-200 -ml-4">
+                <div className="h-56 w-0.5 bg-gradient-to-b from-transparent via-blue-400 to-transparent relative overflow-hidden shadow-lg">
+                  <div className="absolute inset-0 w-full">
+                    <div className="absolute w-full h-16 bg-gradient-to-b from-transparent via-blue-400 to-transparent blur-md animate-glow-run opacity-90"></div>
+                    <div className="absolute w-full h-20 bg-gradient-to-b from-transparent via-blue-400 to-transparent blur-sm animate-glow-run-delayed opacity-70"></div>
+                    <div className="absolute w-full h-14 bg-gradient-to-b from-transparent via-blue-300 to-transparent blur-sm animate-glow-run-fast opacity-60"></div>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">Enter Password :</label>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        placeholder="••••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-4 py-3 pr-12 border-b-2 border-gray-300 focus:border-[#5a8a8f] outline-none bg-transparent text-gray-700"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2"
-                      >
-                        {showPassword ? <EyeOff className="w-5 h-5 text-gray-400" /> : <Eye className="w-5 h-5 text-gray-400" />}
-                      </button>
-                    </div>
+                </div>
+                <div className="absolute animate-in zoom-in-50 duration-500 delay-700">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-blue-500 rounded-full blur-md opacity-50 animate-pulse"></div>
+                    <span className="relative bg-[#252836] px-2 py-0.5 text-white font-medium rounded-full border border-blue-400 text-[11px] shadow-lg">OR</span>
                   </div>
+                </div>
+              </div>
 
-                  <div className="flex items-center justify-between pt-4">
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        className="w-4 h-4 border-2 border-gray-400 rounded"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Remember me</span>
+              {/* Right side - Email for Backroom */}
+              <div className="flex-1 animate-in slide-in-from-right-4 duration-700 delay-400">
+                <form onSubmit={handleBackroomLogin} className="space-y-4">
+                  <div>
+                    <label className="block text-gray-300 text-xs font-medium mb-2">
+                      Enter Google Account (External Email)
                     </label>
-                    <button type="button" className="text-sm text-gray-700 hover:text-[#5a8a8f]">
-                      Forgot Password?
-                    </button>
+                    <input
+                      type="email"
+                      placeholder="username@shopeemobile-external.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm bg-[#1a1d29] border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#5a8a8f] transition-colors"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      By proceeding you confirm that you agree to the{" "}
+                      <span className="text-white font-medium">Privacy Policy</span> &{" "}
+                      <span className="text-white font-medium">Terms of Use</span>.
+                    </p>
                   </div>
 
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-4 bg-[#5a8a8f] hover:bg-[#4a7a7f] text-white font-semibold rounded-xl transition-all disabled:opacity-50 mt-8 text-lg"
+                    className="w-full py-2.5 bg-[#5a8a8f] hover:bg-[#4a7a7f] text-white font-semibold rounded-lg transition-all disabled:opacity-50 text-sm"
                   >
-                    {loading ? "Signing In..." : "Login"}
+                    {loading ? "Signing In..." : "Continue"}
                   </button>
                 </form>
-              </div>
 
-              {/* Right side - Illustration with diagonal */}
-              <div className="w-1/2 relative">
-                {/* Diagonal overlay */}
-                <div className="absolute inset-0 bg-[#5a8a8f]" 
-                     style={{ clipPath: 'polygon(15% 0, 100% 0, 100% 100%, 0 100%)' }}>
-                  
-                  {/* Illustration */}
-                  <div className="flex items-center justify-center h-full p-12">
-                    <svg width="450" height="400" viewBox="0 0 450 400" fill="none">
-                      {/* Hand with package */}
-                      <ellipse cx="80" cy="200" rx="45" ry="40" fill="#f4a89f"/>
-                      <path d="M60 180 Q80 160 100 180" fill="#f4a89f"/>
-                      <rect x="55" y="165" width="40" height="40" rx="3" fill="#ff9f5a"/>
-                      <rect x="60" y="170" width="30" height="30" fill="#4a7a7f" opacity="0.3"/>
-                      <circle cx="75" cy="185" r="3" fill="white"/>
-                      
-                      {/* Search icon */}
-                      <circle cx="130" cy="170" r="12" stroke="white" strokeWidth="2" fill="none"/>
-                      <line x1="138" y1="178" x2="148" y2="188" stroke="white" strokeWidth="2"/>
-                      
-                      {/* Globe */}
-                      <circle cx="240" cy="180" r="70" fill="#b8d4e8" opacity="0.4"/>
-                      <ellipse cx="240" cy="180" rx="70" ry="30" fill="none" stroke="#7ba8c4" strokeWidth="2"/>
-                      <ellipse cx="240" cy="180" rx="35" ry="70" fill="none" stroke="#7ba8c4" strokeWidth="2"/>
-                      <line x1="170" y1="180" x2="310" y2="180" stroke="#7ba8c4" strokeWidth="2"/>
-                      
-                      {/* Location pin on globe */}
-                      <path d="M240 150 Q240 165 240 170 L235 175 L240 185 L245 175 Z" fill="#4a9eff"/>
-                      <circle cx="240" cy="155" r="5" fill="#4a9eff"/>
-                      
-                      {/* Map/Document */}
-                      <rect x="310" y="160" width="50" height="60" rx="3" fill="white" opacity="0.9"/>
-                      <line x1="320" y1="175" x2="350" y2="175" stroke="#5a8a8f" strokeWidth="2"/>
-                      <line x1="320" y1="185" x2="345" y2="185" stroke="#5a8a8f" strokeWidth="1.5"/>
-                      <line x1="320" y1="195" x2="350" y2="195" stroke="#5a8a8f" strokeWidth="1.5"/>
-                      
-                      {/* Location pins */}
-                      <path d="M370 140 Q370 150 370 155 L367 158 L370 165 L373 158 Z" fill="#4a9eff"/>
-                      <circle cx="370" cy="145" r="4" fill="#4a9eff"/>
-                      
-                      {/* Packages/Boxes on forklift */}
-                      <rect x="140" y="280" width="35" height="35" rx="2" fill="#ff6b6b"/>
-                      <rect x="145" y="285" width="25" height="25" fill="#4a7a7f" opacity="0.2"/>
-                      <rect x="180" y="290" width="30" height="30" rx="2" fill="#ffd93d"/>
-                      <rect x="185" y="295" width="20" height="20" fill="#4a7a7f" opacity="0.2"/>
-                      
-                      {/* Forklift */}
-                      <rect x="210" y="295" width="60" height="35" fill="#4a7a7f"/>
-                      <rect x="220" y="270" width="20" height="25" fill="#5a8a8f"/>
-                      <circle cx="225" cy="335" r="10" fill="#333"/>
-                      <circle cx="255" cy="335" r="10" fill="#333"/>
-                      <rect x="200" y="280" width="12" height="50" fill="#6a9a9f"/>
-                      
-                      {/* Stacked boxes */}
-                      <rect x="230" y="250" width="30" height="30" rx="2" fill="#4a7a7f"/>
-                      <rect x="235" y="255" width="20" height="20" fill="#5a8a8f" opacity="0.3"/>
-                      <line x1="245" y1="255" x2="245" y2="275" stroke="white" strokeWidth="2"/>
-                      <line x1="235" y1="265" x2="255" y2="265" stroke="white" strokeWidth="2"/>
-                      
-                      {/* Mobile with checkmark */}
-                      <rect x="360" y="250" width="45" height="80" rx="6" fill="#2d3748"/>
-                      <rect x="365" y="258" width="35" height="60" rx="3" fill="#5a8a8f"/>
-                      <circle cx="382" cy="280" r="15" fill="#4ade80"/>
-                      <path d="M375 280 L380 285 L390 273" stroke="white" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                      
-                      {/* Truck */}
-                      <rect x="300" y="300" width="100" height="50" rx="5" fill="#ff6b6b"/>
-                      <rect x="360" y="280" width="40" height="20" fill="#ff5252"/>
-                      <rect x="365" y="285" width="30" height="10" fill="#b8d4e8"/>
-                      <circle cx="320" cy="355" r="13" fill="#2d3748"/>
-                      <circle cx="320" cy="355" r="7" fill="#4a5568"/>
-                      <circle cx="375" cy="355" r="13" fill="#2d3748"/>
-                      <circle cx="375" cy="355" r="7" fill="#4a5568"/>
-                      <path d="M310 315 L318 323 L330 308" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                      
-                      {/* Clouds */}
-                      <ellipse cx="100" cy="120" rx="18" ry="10" fill="white" opacity="0.6"/>
-                      <ellipse cx="115" cy="123" rx="15" ry="8" fill="white" opacity="0.6"/>
-                      <ellipse cx="380" cy="100" rx="20" ry="12" fill="white" opacity="0.6"/>
-                      <ellipse cx="395" cy="105" rx="18" ry="10" fill="white" opacity="0.6"/>
-                    </svg>
-                  </div>
+                <div className="mt-4 text-center">
+                  <p className="text-xs text-gray-400">
+                    Having trouble logging in?{" "}
+                    <button 
+                      onClick={() => setShowHelp(true)}
+                      className="text-[#5a8a8f] hover:underline font-medium"
+                    >
+                      Get Help
+                    </button>
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Help Modal */}
+      {showHelp && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowHelp(false)}></div>
+          <div className="relative w-full max-w-md mx-4 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+            <div className="bg-[#252836] rounded-2xl shadow-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5 text-[#5a8a8f]" />
+                  <h3 className="text-lg font-semibold text-white">Contact Data Team</h3>
+                </div>
+                <button onClick={() => setShowHelp(false)} className="text-gray-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <p className="text-sm text-gray-400 mb-4">
+                Describe your issue and our Data Team will assist you shortly.
+              </p>
+              
+              <textarea
+                value={helpMessage}
+                onChange={(e) => setHelpMessage(e.target.value)}
+                placeholder="Type your message here..."
+                className="w-full h-32 px-3 py-2 bg-[#1a1d29] border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#5a8a8f] resize-none text-sm"
+              />
+              
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => setShowHelp(false)}
+                  className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSendHelp}
+                  disabled={!helpMessage.trim()}
+                  className="flex-1 py-2 bg-[#5a8a8f] hover:bg-[#4a7a7f] text-white rounded-lg transition-colors disabled:opacity-50 text-sm font-semibold"
+                >
+                  Send Message
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
+}
+
+export function LoginPage() {
+  return null
 }

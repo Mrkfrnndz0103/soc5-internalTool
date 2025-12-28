@@ -13,7 +13,8 @@ Enterprise-grade web application built with the Backstage Design System for mana
 - **Midmile Operations** - Truck request management
 
 ### Key Features
-- ✅ Dual authentication (Backroom with Ops ID + FTE with Google OAuth)
+- ✅ Dual authentication (Backroom with Email + FTE with SeaTalk QR)
+- ✅ SeaTalk mobile app QR code authentication
 - ✅ Dark/Light theme support
 - ✅ Collapsible sidebar with nested menus
 - ✅ Real-time form validation
@@ -87,10 +88,14 @@ This application uses Supabase as the backend database with direct client integr
    ```
    VITE_SUPABASE_URL=https://your-project.supabase.co
    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   VITE_GOOGLE_CLIENT_ID=your_google_client_id
    ```
 
-4. **Google Sheets Integration**
+4. **Setup SeaTalk Authentication**
+   - Follow instructions in `docs/SEATALK_AUTH_SETUP.md`
+   - Deploy SeaTalk webhook handler
+   - Register deep link with SeaTalk platform
+
+5. **Google Sheets Integration**
    - Setup Google Sheets with tabs: Users, Outbound Map, Dispatch Reports
    - Deploy `supabase/google-sheets-sync.gs` as Apps Script
    - Deploy `supabase/webhook-receiver.gs` as Web App
@@ -159,15 +164,13 @@ The built files will be in the `dist` directory.
 
 **Backroom Users:**
 1. Select "Backroom" role
-2. Enter your Ops ID
-3. Name will auto-populate
-4. Enter password (first-time default: `SOC5-Outbound`)
-5. Change password if prompted
+2. Enter your email (@shopeemobile-external.com)
+3. Click "Continue"
 
 **FTE Users:**
-1. Select "FTE" role
-2. Click "Sign in with Google"
-3. Authenticate with company Google account
+1. Open SeaTalk mobile app on your phone
+2. Scan the QR code displayed on login page
+3. Automatically logged in with your SeaTalk email account
 
 ### Dispatch Report
 
@@ -262,9 +265,10 @@ Use the existing component patterns in `src/components/ui/` as templates.
 ## Deployment
 
 ### Environment Variables (Production)
-- Set `VITE_API_BASE_URL` to your production API
-- Configure Google OAuth with production credentials
-- Set up CORS on your backend for the production domain
+- Set `VITE_SUPABASE_URL` to your production Supabase URL
+- Set `VITE_SUPABASE_ANON_KEY` to your production Supabase anon key
+- Deploy SeaTalk webhook with production credentials
+- Register production domain with SeaTalk platform
 
 ### Hosting Options
 - **Vercel/Netlify**: Connect your Git repository for automatic deployments
@@ -283,9 +287,10 @@ Use the existing component patterns in `src/components/ui/` as templates.
 - Ensure backend is running and CORS is configured
 
 ### Google OAuth Not Working
-- Verify `VITE_GOOGLE_CLIENT_ID` is correct
-- Check redirect URIs in Google Cloud Console
-- Ensure domain is added to authorized origins
+- Verify SeaTalk webhook is deployed and accessible
+- Check deep link is registered with SeaTalk platform
+- Ensure user's SeaTalk email matches database email
+- Check `seatalk_sessions` table for session records
 
 ## Documentation
 
@@ -294,6 +299,9 @@ For detailed documentation, see the [docs](./docs) folder:
 - **Getting Started**: [QUICKSTART.md](./docs/QUICKSTART.md)
 - **Development**: [DEVELOPMENT.md](./docs/DEVELOPMENT.md)
 - **Setup**: [SUPABASE_SETUP.md](./docs/SUPABASE_SETUP.md)
+- **SeaTalk Auth**: [SEATALK_AUTH_SETUP.md](./docs/SEATALK_AUTH_SETUP.md)
+- **SeaTalk Flow**: [SEATALK_FLOW_DIAGRAM.md](./docs/SEATALK_FLOW_DIAGRAM.md)
+- **SeaTalk Quick Ref**: [SEATALK_QUICK_REFERENCE.md](./docs/SEATALK_QUICK_REFERENCE.md)
 - **Deployment**: [DEPLOYMENT_CHECKLIST.md](./docs/DEPLOYMENT_CHECKLIST.md)
 - **Project Structure**: [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md)
 - **Changelog**: [CHANGELOG.md](./docs/CHANGELOG.md)
