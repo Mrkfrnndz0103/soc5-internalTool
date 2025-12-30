@@ -192,11 +192,24 @@ npm run preview
 
 - [Getting Started](docs/GETTING_STARTED.md)
 - [Database Setup](docs/DATABASE_SETUP.md)
-- [Authentication](docs/AUTHENTICATION.md)
 - [API Reference](docs/API_REFERENCE.md)
 - [Deployment](docs/DEPLOYMENT.md)
 - [Project Analysis](docs/PROJECT_ANALYSIS.md)
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
+- [Auto-Update System](docs/AUTO_UPDATE.md) - Documentation automation
+
+### 🤖 Auto-Documentation
+
+Documentation automatically updates when code changes:
+```bash
+# Watch mode (development)
+npm run docs:watch
+
+# Manual update
+npm run docs:update
+
+# Auto-updates on git commit (via pre-commit hook)
+```
 
 ## 🎨 Theme System
 

@@ -168,7 +168,7 @@ npm install -D vitest @testing-library/react
 - [ ] Real-time updates
 
 ### 6.3 E2E Tests
-- [ ] Login scenarios
+- [x] Login scenarios
 - [ ] Complete dispatch workflow
 - [ ] Admin operations
 - [ ] Error scenarios
