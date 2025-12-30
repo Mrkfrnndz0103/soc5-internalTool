@@ -6,10 +6,12 @@ import {
   Save, 
   RotateCcw, 
   MapPin,
-  Users,
   Package,
   Truck,
-  User
+  User,
+  Calendar,
+  BarChart3,
+  MoreHorizontal
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -194,85 +196,285 @@ export function DispatchReportTable() {
   const totalVolume = rows.reduce((sum, row) => sum + row.totalOIDLoaded, 0)
   const avgProductivity = totalBatches > 0 ? Math.round((totalVolume / totalBatches) * 10) / 10 : 0
 
+  // Generate fake line graph data
+  const generateLineData = (points: number, variance: number) => {
+    return Array.from({ length: points }, (_, i) => {
+      const base = 50 + Math.random() * variance
+      const trend = i * 2
+      return Math.max(10, Math.min(100, base + trend + (Math.random() - 0.5) * 20))
+    })
+  }
+
+  const batchTrendData = generateLineData(7, 30)
+  const volumeTrendData = generateLineData(7, 40)
+  const productivityTrendData = generateLineData(7, 25)
+
   return (
-    <div className="space-y-6">
-      {/* Scorecards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div className="max-w-9xl mx-auto px-4 py-4 space-y-6">
+      {/* Top Section: Scorecards and Calendar */}
+      <div className="flex flex-col lg:flex-row gap-6 mb-6">
+        {/* Scorecards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-1 w-full">
+          {/* Total Batches Scorecard */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            whileHover={{ 
+              scale: 1.05,
+              boxShadow: "0 20px 40px rgba(79, 70, 229, 0.3)",
+              transition: { duration: 0.3 }
+            }}
+            className="relative cursor-pointer"
+            style={{
+              width: '240px',
+              height: '120px',
+              borderRadius: '16px',
+              padding: '16px',
+              background: 'linear-gradient(135deg, #A5B4FC, #C7D2FE)',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div 
+                className="h-8 w-8 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: '#EEF2FF' }}
+              >
+                <Package className="h-4 w-4" style={{ color: '#4F46E5' }} />
+              </div>
+              <button className="text-gray-600 hover:bg-gray-100 rounded p-1">
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-1">
+              <p 
+                className="font-medium text-left"
+                style={{ fontSize: '12px', color: '#0F172A' }}
+              >
+                Total Batches
+              </p>
+              <p 
+                className="font-bold text-left"
+                style={{ fontSize: '28px', color: '#0F172A' }}
+              >
+                {totalBatches}
+              </p>
+            </div>
+            {/* Mini Trend Graph */}
+            <div className="absolute bottom-2 left-4 right-4 h-6">
+              <svg viewBox="0 0 100 25" className="w-full h-full">
+                <polyline
+                  points={batchTrendData.map((value, index) => 
+                    `${(index / (batchTrendData.length - 1)) * 100},${25 - (value / 100) * 20}`
+                  ).join(' ')}
+                  fill="none"
+                  stroke="rgba(79, 70, 229, 0.2)"
+                  strokeWidth="1.5"
+                />
+                <polyline
+                  points={batchTrendData.map((value, index) => 
+                    `${(index / (batchTrendData.length - 1)) * 100},${25 - (value / 100) * 20}`
+                  ).join(' ')}
+                  fill="none"
+                  stroke="#4F46E5"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </motion.div>
+
+          {/* Volume Loaded Scorecard */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            whileHover={{ 
+              scale: 1.05,
+              boxShadow: "0 20px 40px rgba(220, 38, 38, 0.3)",
+              transition: { duration: 0.3 }
+            }}
+            className="relative cursor-pointer w-full h-[120px] rounded-2xl p-4"
+            style={{
+              background: 'linear-gradient(135deg, #FB7185, #FDA4AF)',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div 
+                className="h-8 w-8 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: '#FFE4E6' }}
+              >
+                <Truck className="h-4 w-4" style={{ color: '#DC2626' }} />
+              </div>
+              <button className="text-gray-600 hover:bg-gray-100 rounded p-1">
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-1">
+              <p 
+                className="font-medium text-left"
+                style={{ fontSize: '12px', color: '#0F172A' }}
+              >
+                Volume Loaded
+              </p>
+              <p 
+                className="font-bold text-left"
+                style={{ fontSize: '28px', color: '#0F172A' }}
+              >
+                {totalVolume.toLocaleString()}
+              </p>
+            </div>
+            {/* Mini Trend Graph */}
+            <div className="absolute bottom-2 left-4 right-4 h-6">
+              <svg viewBox="0 0 100 25" className="w-full h-full">
+                <polyline
+                  points={volumeTrendData.map((value, index) => 
+                    `${(index / (volumeTrendData.length - 1)) * 100},${25 - (value / 100) * 20}`
+                  ).join(' ')}
+                  fill="none"
+                  stroke="rgba(220, 38, 38, 0.2)"
+                  strokeWidth="1.5"
+                />
+                <polyline
+                  points={volumeTrendData.map((value, index) => 
+                    `${(index / (volumeTrendData.length - 1)) * 100},${25 - (value / 100) * 20}`
+                  ).join(' ')}
+                  fill="none"
+                  stroke="#DC2626"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </motion.div>
+
+          {/* Productivity Scorecard */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            whileHover={{ 
+              scale: 1.05,
+              boxShadow: "0 20px 40px rgba(217, 119, 6, 0.3)",
+              transition: { duration: 0.3 }
+            }}
+            className="relative cursor-pointer w-full h-[120px] rounded-2xl p-4"
+            style={{
+              background: 'linear-gradient(135deg, #FBBF24, #FDE68A)',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div 
+                className="h-8 w-8 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: '#FFFBEB' }}
+              >
+                <BarChart3 className="h-4 w-4" style={{ color: '#D97706' }} />
+              </div>
+              <button className="text-gray-600 hover:bg-gray-100 rounded p-1">
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-1">
+              <p 
+                className="font-medium text-left"
+                style={{ fontSize: '12px', color: '#0F172A' }}
+              >
+                Productivity
+              </p>
+              <p 
+                className="font-bold text-left"
+                style={{ fontSize: '28px', color: '#0F172A' }}
+              >
+                {avgProductivity}
+              </p>
+            </div>
+            {/* Mini Trend Graph */}
+            <div className="absolute bottom-2 left-4 right-4 h-6">
+              <svg viewBox="0 0 100 25" className="w-full h-full">
+                <polyline
+                  points={productivityTrendData.map((value, index) => 
+                    `${(index / (productivityTrendData.length - 1)) * 100},${25 - (value / 100) * 20}`
+                  ).join(' ')}
+                  fill="none"
+                  stroke="rgba(217, 119, 6, 0.2)"
+                  strokeWidth="1.5"
+                />
+                <polyline
+                  points={productivityTrendData.map((value, index) => 
+                    `${(index / (productivityTrendData.length - 1)) * 100},${25 - (value / 100) * 20}`
+                  ).join(' ')}
+                  fill="none"
+                  stroke="#D97706"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Calendar Component */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.5 }}
           whileHover={{ 
-            scale: 1.05,
-            boxShadow: "0 20px 40px rgba(59, 130, 246, 0.3)",
+            scale: 1.02,
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.15)",
             transition: { duration: 0.3 }
           }}
-          className="relative overflow-hidden"
+          className="bg-white rounded-2xl shadow-lg p-4 flex-shrink-0 cursor-pointer"
+          style={{
+            width: '240px',
+            height: '240px',
+            alignSelf: 'flex-start',
+            transition: 'all 0.3s ease'
+          }}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 opacity-90"></div>
-          <div className="relative bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 h-40">
-            <div className="flex items-center justify-between h-full">
-              <div>
-                <p className="text-sm font-medium text-white/80 mb-2">Number of Batches</p>
-                <p className="text-2xl lg:text-3xl font-bold text-white mb-1">{totalBatches}</p>
-                <div className="w-12 h-1 bg-white/40 rounded-full"></div>
-              </div>
-              <div className="h-16 w-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <Package className="h-8 w-8 text-white" />
-              </div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900 text-left">
+              {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </h3>
+            <div className="h-8 w-8 bg-blue-50 rounded-lg flex items-center justify-center">
+              <Calendar className="h-4 w-4 text-blue-600" />
             </div>
           </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          whileHover={{ 
-            scale: 1.05,
-            boxShadow: "0 20px 40px rgba(34, 197, 94, 0.3)",
-            transition: { duration: 0.3 }
-          }}
-          className="relative overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 via-emerald-500 to-emerald-600 opacity-90"></div>
-          <div className="relative bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 h-40">
-            <div className="flex items-center justify-between h-full">
-              <div>
-                <p className="text-sm font-medium text-white/80 mb-2">Volume Loaded</p>
-                <p className="text-2xl lg:text-3xl font-bold text-white mb-1">{totalVolume.toLocaleString()}</p>
-                <div className="w-12 h-1 bg-white/40 rounded-full"></div>
-              </div>
-              <div className="h-16 w-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <Truck className="h-8 w-8 text-white" />
-              </div>
+          
+          {/* Calendar Grid */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-7 gap-1 text-xs">
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+                <div key={i} className="text-center font-medium text-gray-500 text-left">
+                  {day}
+                </div>
+              ))}
             </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          whileHover={{ 
-            scale: 1.05,
-            boxShadow: "0 20px 40px rgba(168, 85, 247, 0.3)",
-            transition: { duration: 0.3 }
-          }}
-          className="relative overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 opacity-90"></div>
-          <div className="relative bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 h-40">
-            <div className="flex items-center justify-between h-full">
-              <div>
-                <p className="text-sm font-medium text-white/80 mb-2">Productivity</p>
-                <p className="text-2xl lg:text-3xl font-bold text-white mb-1">{avgProductivity}</p>
-                <p className="text-xs text-white/60">avg per batch</p>
-                <div className="w-12 h-1 bg-white/40 rounded-full"></div>
-              </div>
-              <div className="h-16 w-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <Users className="h-8 w-8 text-white" />
-              </div>
+            <div className="grid grid-cols-7 gap-1 text-sm">
+              {Array.from({ length: 35 }, (_, i) => {
+                const dayNum = i - 2 + 1
+                const isCurrentMonth = dayNum > 0 && dayNum <= 31
+                const isToday = dayNum === new Date().getDate()
+                return (
+                  <div
+                    key={i}
+                    className={`
+                      text-center py-2 rounded cursor-pointer transition-colors
+                      ${!isCurrentMonth ? 'text-gray-300' : 'text-gray-700'}
+                      ${isToday ? 'bg-blue-600 text-white font-semibold' : 'hover:bg-blue-50'}
+                    `}
+                    style={{
+                      color: isToday ? '#FFFFFF' : isCurrentMonth ? '#94A3B8' : '#E2E8F0'
+                    }}
+                  >
+                    {isCurrentMonth ? dayNum : ''}
+                  </div>
+                )
+              })}
             </div>
           </div>
         </motion.div>
@@ -299,27 +501,39 @@ export function DispatchReportTable() {
         </div>
       </div>
 
-      {/* Editable Table */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
+      {/* Escalations Table */}
+      <div 
+        className="bg-white rounded-2xl shadow-lg overflow-hidden"
+        style={{
+          padding: '20px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+        }}
+      >
         <div ref={tableRef} className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-100">
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Batch #</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Cluster Name</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Station</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Region</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Count of TO</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Total OID Loaded</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Actual Docked Time</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Dock #</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Actual Depart Time</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Name of Processor</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">LH Trip #</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Plate #</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Fleet Size</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Assigned PIC / OPS Coor</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Actions</th>
+              <tr 
+                style={{
+                  height: '56px',
+                  background: '#F8FAFC',
+                  borderBottom: '1px solid #E2E8F0'
+                }}
+              >
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Batch #</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Cluster Name</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Station</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Region</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Count of TO</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Total OID Loaded</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Actual Docked Time</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Dock #</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Actual Depart Time</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Name of Processor</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>LH Trip #</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Plate #</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Fleet Size</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Assigned PIC / OPS Coor</th>
+                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -332,6 +546,7 @@ export function DispatchReportTable() {
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ delay: index * 0.05 }}
                     className="hover:bg-gradient-to-r hover:from-sky-50 hover:to-blue-50 transition-all duration-200 border-l-4 border-l-transparent hover:border-l-sky-400"
+                    style={{ height: '52px' }}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-sky-100 to-sky-200 text-sky-800 font-bold text-sm shadow-sm">
@@ -344,6 +559,7 @@ export function DispatchReportTable() {
                         onChange={(e) => handleClusterInput(row.id, e.target.value)}
                         placeholder="Type 3+ chars..."
                         className="w-36 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                        style={{ fontSize: '14px' }}
                       />
                       {showClusterDropdown === row.id && filteredClusters.length > 0 && (
                         <div className="absolute z-10 mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-auto">
@@ -365,7 +581,7 @@ export function DispatchReportTable() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <MapPin className="h-4 w-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-600 font-medium">{row.station || "Auto-filled"}</span>
+                        <span className="text-sm text-gray-600 font-medium" style={{ fontSize: '14px' }}>{row.station || "Auto-filled"}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -380,6 +596,7 @@ export function DispatchReportTable() {
                         value={row.countTO}
                         onChange={(e) => handleCellEdit(row.id, 'countTO', parseInt(e.target.value) || 0)}
                         className="w-24 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                        style={{ fontSize: '14px' }}
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -389,6 +606,7 @@ export function DispatchReportTable() {
                         value={row.totalOIDLoaded}
                         onChange={(e) => handleCellEdit(row.id, 'totalOIDLoaded', parseInt(e.target.value) || 0)}
                         className="w-28 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                        style={{ fontSize: '14px' }}
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -397,6 +615,7 @@ export function DispatchReportTable() {
                         value={row.actualDockedTime}
                         onChange={(e) => handleCellEdit(row.id, 'actualDockedTime', e.target.value)}
                         className="w-40 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                        style={{ fontSize: '14px' }}
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -405,6 +624,7 @@ export function DispatchReportTable() {
                           value={row.dockNumber}
                           onChange={(e) => handleCellEdit(row.id, 'dockNumber', e.target.value)}
                           className="w-24 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                          style={{ fontSize: '14px' }}
                         />
                         <input
                           type="checkbox"
@@ -421,6 +641,7 @@ export function DispatchReportTable() {
                         onChange={(e) => handleCellEdit(row.id, 'actualDepartTime', e.target.value)}
                         min={row.actualDockedTime}
                         className="w-40 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                        style={{ fontSize: '14px' }}
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap relative">
@@ -429,6 +650,7 @@ export function DispatchReportTable() {
                         onChange={(e) => handleProcessorInput(row.id, e.target.value)}
                         placeholder="Type 3+ chars..."
                         className="w-36 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                        style={{ fontSize: '14px' }}
                       />
                       {showProcessorDropdown === row.id && filteredProcessors.length > 0 && (
                         <div className="absolute z-10 mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-auto">
@@ -453,6 +675,7 @@ export function DispatchReportTable() {
                         onChange={(e) => handleCellEdit(row.id, 'lHTripNumber', e.target.value.toUpperCase())}
                         placeholder="LT..."
                         className="w-28 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100 uppercase"
+                        style={{ fontSize: '14px' }}
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -460,6 +683,7 @@ export function DispatchReportTable() {
                         value={row.plateNumber}
                         onChange={(e) => handleCellEdit(row.id, 'plateNumber', e.target.value.toUpperCase())}
                         className="w-24 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100 uppercase"
+                        style={{ fontSize: '14px' }}
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -467,6 +691,7 @@ export function DispatchReportTable() {
                         value={row.fleetSize}
                         onChange={(e) => handleCellEdit(row.id, 'fleetSize', e.target.value)}
                         className="w-20 h-10 text-sm border-gray-200 rounded-xl px-3 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                        style={{ fontSize: '14px' }}
                       >
                         {fleetSizes.map(size => (
                           <option key={size} value={size}>{size}</option>
@@ -481,6 +706,7 @@ export function DispatchReportTable() {
                           onChange={(e) => handleCellEdit(row.id, 'assignedPIC', e.target.value)}
                           placeholder="OPS ID..."
                           className="w-28 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                          style={{ fontSize: '14px' }}
                         />
                       </div>
                     </td>
