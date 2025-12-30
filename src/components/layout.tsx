@@ -25,15 +25,8 @@ const pageTitle: Record<string, string> = {
 export function Layout() {
   const { user } = useAuth()
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [currentTime, setCurrentTime] = useState(new Date())
   const location = useLocation()
   const [lastPath, setLastPath] = useState(location.pathname)
-  const searchInputRef = useState<HTMLInputElement | null>(null)[0]
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [])
 
   useEffect(() => {
     if (location.pathname !== lastPath) {

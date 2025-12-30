@@ -140,7 +140,7 @@ function NavItem({ item, isCollapsed, level = 0 }: NavItemProps) {
         )}
       </Link>
       {shouldShowSubItems && (
-        <div className="space-y-0.5 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="space-y-0.125 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
           {item.subItems!.map((subItem) => (
             <NavItem
               key={subItem.path}

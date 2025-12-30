@@ -95,7 +95,7 @@ export function PrealertPage() {
   const handleStatusChange = async (dispatchId: string, newStatus: string) => {
     toast({
       title: "Status updated",
-      description: `Dispatch status changed to ${newStatus}`,
+      description: `Dispatch ${dispatchId} status changed to ${newStatus}`,
     })
     loadEntries()
   }
@@ -103,7 +103,7 @@ export function PrealertPage() {
   const handleVerify = async (dispatchId: string) => {
     toast({
       title: "Dispatch verified",
-      description: "Automated notifications will be sent.",
+      description: `Dispatch ${dispatchId} verified. Automated notifications will be sent.`,
     })
     loadEntries()
   }
@@ -112,7 +112,7 @@ export function PrealertPage() {
     toast({
       variant: "destructive",
       title: "Dispatch rejected",
-      description: "Notification sent to submitter for corrections.",
+      description: `Dispatch ${dispatchId} rejected. Notification sent to submitter for corrections.`,
     })
     loadEntries()
   }
