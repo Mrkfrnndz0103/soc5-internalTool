@@ -26,7 +26,7 @@ const pageVariants = {
 const pageTransition = {
   type: "tween" as const,
   ease: "anticipate" as const,
-  duration: 0.4
+  duration: 0.8
 }
 
 const slideVariants = {
@@ -47,7 +47,7 @@ const slideVariants = {
 const slideTransition = {
   type: "tween" as const,
   ease: "easeInOut" as const,
-  duration: 0.3
+  duration: 0.6
 }
 
 const fadeVariants = {
@@ -65,7 +65,7 @@ const fadeVariants = {
 const fadeTransition = {
   type: "tween" as const,
   ease: "easeInOut" as const,
-  duration: 0.2
+  duration: 0.5
 }
 
 export function AnimatedPage({ children }: AnimatedPageProps) {

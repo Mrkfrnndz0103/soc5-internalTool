@@ -56,33 +56,60 @@ function AppRoutes() {
           </AnimatedPage>
         } />
 
-        {/* Outbound Admin routes */}
-        <Route path="outbound/admin/attendance" element={
+        {/* Data Team routes */}
+        <Route path="data-team/prealert" element={
+          <AnimatedPage>
+            <PrealertPage />
+          </AnimatedPage>
+        } />
+        <Route path="data-team/socpacked-update" element={
+          <AnimatedPage>
+            <PlaceholderPage title="SOCPacked Update" />
+          </AnimatedPage>
+        } />
+        <Route path="data-team/file-upload" element={
+          <AnimatedPage>
+            <PlaceholderPage title="File Upload" />
+          </AnimatedPage>
+        } />
+        <Route path="data-team/validation/stuckup" element={
+          <AnimatedPage>
+            <PlaceholderPage title="Stuckup Validation" />
+          </AnimatedPage>
+        } />
+        <Route path="data-team/validation/shortlanded" element={
+          <AnimatedPage>
+            <PlaceholderPage title="Shortlanded Validation" />
+          </AnimatedPage>
+        } />
+
+        {/* Admin routes */}
+        <Route path="admin/attendance" element={
           <AnimatedPage>
             <PlaceholderPage title="Attendance" />
           </AnimatedPage>
         } />
-        <Route path="outbound/admin/masterfile" element={
+        <Route path="admin/masterfile" element={
           <AnimatedPage>
             <PlaceholderPage title="Masterfile" />
           </AnimatedPage>
         } />
-        <Route path="outbound/admin/attendance-history" element={
+        <Route path="admin/attendance-history" element={
           <AnimatedPage>
             <PlaceholderPage title="Attendance History" />
           </AnimatedPage>
         } />
-        <Route path="outbound/admin/breaktime" element={
+        <Route path="admin/breaktime" element={
           <AnimatedPage>
             <PlaceholderPage title="Breaktime Management" />
           </AnimatedPage>
         } />
-        <Route path="outbound/admin/leave" element={
+        <Route path="admin/leave" element={
           <AnimatedPage>
             <PlaceholderPage title="Leave Management" />
           </AnimatedPage>
         } />
-        <Route path="outbound/admin/workstation" element={
+        <Route path="admin/workstation" element={
           <AnimatedPage>
             <PlaceholderPage title="Workstation" />
           </AnimatedPage>

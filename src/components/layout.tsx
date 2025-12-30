@@ -1,12 +1,16 @@
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Outlet, useLocation } from "react-router-dom"
-import { Search, Mail, Bell, Calendar, Settings, User, Home, ChevronRight, LayoutDashboard, Eye, FileText, AlertCircle, Grid3x3, Briefcase, TrendingUp, Truck, Keyboard } from "lucide-react"
-import { Sidebar } from "@/components/sidebar"
+import { Search, Mail, Bell, Calendar, Settings, User, Home, ChevronRight, LayoutDashboard, Eye, FileText, AlertCircle, Grid3x3, Briefcase, TrendingUp, Truck, Keyboard, Database } from "lucide-react"
+import { Sidebar, SidebarPopupType } from "@/components/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ChatPopup } from "@/components/chat-popup"
+import { MessagesPopup } from "@/components/messages-popup"
+import { NotificationsPopup } from "@/components/notifications-popup"
+import { HelpPopup } from "@/components/help-popup"
+import { SettingsPopup } from "@/components/settings-popup"
 import { useAuth } from "@/contexts/auth-context"
 
 const pageTitle: Record<string, string> = {
@@ -15,6 +19,17 @@ const pageTitle: Record<string, string> = {
   "/outbound/prealert": "Prealert Database",
   "/outbound/dispatch-monitoring": "Dispatch Monitoring",
   "/outbound/bay-allocation": "Per Bay Allocation",
+  "/data-team/prealert": "Prealert Database",
+  "/data-team/socpacked-update": "SOCPacked Update",
+  "/data-team/file-upload": "File Upload",
+  "/data-team/validation/stuckup": "Stuckup Validation",
+  "/data-team/validation/shortlanded": "Shortlanded Validation",
+  "/admin/attendance": "Attendance",
+  "/admin/masterfile": "Masterfile",
+  "/admin/attendance-history": "Attendance History",
+  "/admin/breaktime": "Breaktime Management",
+  "/admin/leave": "Leave Management",
+  "/admin/workstation": "Workstation",
   "/kpi/mdt": "MDT Performance",
   "/kpi/workstation": "Workstation Metrics",
   "/kpi/productivity": "Productivity Tracking",
@@ -25,8 +40,51 @@ const pageTitle: Record<string, string> = {
 export function Layout() {
   const { user } = useAuth()
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [activePopup, setActivePopup] = useState<SidebarPopupType>(null)
+  const [minimizedPopups, setMinimizedPopups] = useState<Set<SidebarPopupType>>(new Set())
   const location = useLocation()
   const [lastPath, setLastPath] = useState(location.pathname)
+
+  const handlePopupChange = (popup: SidebarPopupType) => {
+    if (activePopup === popup) {
+      setActivePopup(null)
+      setMinimizedPopups(prev => {
+        const next = new Set(prev)
+        next.delete(popup)
+        return next
+      })
+    } else {
+      setActivePopup(popup)
+      setMinimizedPopups(prev => {
+        const next = new Set(prev)
+        next.delete(popup)
+        return next
+      })
+    }
+  }
+
+  const toggleMinimize = (popup: SidebarPopupType) => {
+    setMinimizedPopups(prev => {
+      const next = new Set(prev)
+      if (next.has(popup)) {
+        next.delete(popup)
+      } else {
+        next.add(popup)
+      }
+      return next
+    })
+  }
+
+  const closePopup = (popup: SidebarPopupType) => {
+    if (activePopup === popup) {
+      setActivePopup(null)
+    }
+    setMinimizedPopups(prev => {
+      const next = new Set(prev)
+      next.delete(popup)
+      return next
+    })
+  }
 
   useEffect(() => {
     if (location.pathname !== lastPath) {
@@ -35,17 +93,19 @@ export function Layout() {
     }
   }, [location.pathname, lastPath])
 
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
-        e.preventDefault()
-        const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement
-        searchInput?.focus()
-      }
+  // Memoized keyboard handler to prevent recreation
+  const handleKeyPress = useCallback((e: KeyboardEvent) => {
+    if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      e.preventDefault()
+      const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement
+      searchInput?.focus()
     }
+  }, [])
+
+  useEffect(() => {
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [])
+  }, [handleKeyPress])
 
   const currentPageTitle = pageTitle[location.pathname] || "Outbound Tool"
 
@@ -65,13 +125,15 @@ export function Layout() {
     if (path === "/outbound/dispatch-report") return <FileText className={iconClassName} />
     if (path === "/outbound/prealert") return <AlertCircle className={iconClassName} />
     if (path === "/outbound/bay-allocation") return <Grid3x3 className={iconClassName} />
-    if (path.startsWith("/outbound/admin")) return <Briefcase className={iconClassName} />
+    if (path.startsWith("/data-team")) return <Database className={iconClassName} />
+    if (path.startsWith("/admin")) return <Briefcase className={iconClassName} />
     if (path.startsWith("/kpi")) return <TrendingUp className={iconClassName} />
     if (path.startsWith("/midmile")) return <Truck className={iconClassName} />
     return <Home className={iconClassName} />
   }
 
-  const getUserAvatar = () => {
+  // Memoize avatar calculation to prevent recalculation on every render
+  const userAvatar = useMemo(() => {
     const avatars = [
       "from-orange-400 to-pink-400",
       "from-blue-400 to-purple-400",
@@ -81,7 +143,7 @@ export function Layout() {
     ]
     const hash = (user?.name || "").split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
     return avatars[hash % avatars.length]
-  }
+  }, [user?.name])
 
   return (
     <div className="app-container flex h-full overflow-hidden bg-background">
@@ -92,6 +154,8 @@ export function Layout() {
         <Sidebar
           isCollapsed={isSidebarCollapsed}
           onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          activePopup={activePopup}
+          onPopupChange={handlePopupChange}
         />
       </div>
 
@@ -154,7 +218,7 @@ export function Layout() {
                 <div className="text-m font-semibold leading-tight truncate">{user?.name || "User"}</div>
                 <div className="text-[12px] text-muted-foreground truncate">{user?.role || "Role"}</div>
               </div>
-              <div className={`h-11 w-11 rounded-full bg-gradient-to-br ${getUserAvatar()} flex items-center justify-center shadow-md flex-shrink-0`}>
+              <div className={`h-11 w-11 rounded-full bg-gradient-to-br ${userAvatar} flex items-center justify-center shadow-md flex-shrink-0`}>
                 <User className="h-6 w-6 text-white" />
               </div>
             </div>
@@ -176,7 +240,37 @@ export function Layout() {
         </div>
       </div>
 
+      {/* Chat Support - always rendered, self-contained */}
       <ChatPopup />
+
+      {/* Sidebar Popups */}
+      <MessagesPopup
+        isOpen={activePopup === "messages"}
+        onClose={() => closePopup("messages")}
+        isMinimized={minimizedPopups.has("messages")}
+        onToggleMinimize={() => toggleMinimize("messages")}
+      />
+
+      <NotificationsPopup
+        isOpen={activePopup === "notifications"}
+        onClose={() => closePopup("notifications")}
+        isMinimized={minimizedPopups.has("notifications")}
+        onToggleMinimize={() => toggleMinimize("notifications")}
+      />
+
+      <HelpPopup
+        isOpen={activePopup === "help"}
+        onClose={() => closePopup("help")}
+        isMinimized={minimizedPopups.has("help")}
+        onToggleMinimize={() => toggleMinimize("help")}
+      />
+
+      <SettingsPopup
+        isOpen={activePopup === "settings"}
+        onClose={() => closePopup("settings")}
+        isMinimized={minimizedPopups.has("settings")}
+        onToggleMinimize={() => toggleMinimize("settings")}
+      />
     </div>
   )
 }

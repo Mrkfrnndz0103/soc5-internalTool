@@ -81,7 +81,7 @@ export function PrealertPage() {
   }
 
   const handleFilterChange = (key: string, value: string) => {
-    setFilters({ ...filters, [key]: value })
+    setFilters({ ...filters, [key]: value === "all" ? "" : value })
     setPage(1)
   }
 
@@ -93,6 +93,18 @@ export function PrealertPage() {
   }
 
   const handleStatusChange = async (dispatchId: string, newStatus: string) => {
+    const response = await dispatchApi.verifyRows({
+      rows: [dispatchId],
+      verified_by_ops_id: "system",
+    })
+    if (response.error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to update status",
+        description: response.error,
+      })
+      return
+    }
     toast({
       title: "Status updated",
       description: `Dispatch ${dispatchId} status changed to ${newStatus}`,
@@ -101,6 +113,19 @@ export function PrealertPage() {
   }
 
   const handleVerify = async (dispatchId: string) => {
+    const response = await dispatchApi.verifyRows({
+      rows: [dispatchId],
+      verified_by_ops_id: "system",
+      send_csv: true,
+    })
+    if (response.error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to verify dispatch",
+        description: response.error,
+      })
+      return
+    }
     toast({
       title: "Dispatch verified",
       description: `Dispatch ${dispatchId} verified. Automated notifications will be sent.`,
@@ -109,6 +134,18 @@ export function PrealertPage() {
   }
 
   const handleReject = async (dispatchId: string) => {
+    const response = await dispatchApi.verifyRows({
+      rows: [dispatchId],
+      verified_by_ops_id: "system",
+    })
+    if (response.error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to reject dispatch",
+        description: response.error,
+      })
+      return
+    }
     toast({
       variant: "destructive",
       title: "Dispatch rejected",

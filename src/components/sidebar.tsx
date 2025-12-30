@@ -1,10 +1,12 @@
 import type React from "react"
-import { useState } from "react"
+import { useState, useCallback, memo } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { ChevronRight, LayoutDashboard, Package, TrendingUp, Truck, Bell, HelpCircle, Settings, Eye, FileText, AlertCircle, Grid3x3, Users, Calendar, Clock, Briefcase, BarChart3, Zap, MapPin } from "lucide-react"
+import { ChevronRight, LayoutDashboard, Package, TrendingUp, Truck, Bell, HelpCircle, Settings, Eye, FileText, AlertCircle, Grid3x3, Users, Calendar, Clock, Briefcase, BarChart3, Zap, MapPin, Database, Upload, CheckCircle, AlertTriangle, Anchor, MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { SpxLogo } from "@/components/spx-logo"
+
+export type SidebarPopupType = "chat" | "messages" | "notifications" | "help" | "settings" | null
 
 interface SubMenuItem {
   title: string
@@ -35,19 +37,38 @@ const menuItems: MenuItem[] = [
       { title: "Dispatch Report", path: "/outbound/dispatch-report", icon: <FileText className="h-4 w-4" /> },
       { title: "Prealert", path: "/outbound/prealert", icon: <AlertCircle className="h-4 w-4" /> },
       { title: "Per Bay Allocation", path: "/outbound/bay-allocation", icon: <Grid3x3 className="h-4 w-4" /> },
+    ],
+  },
+  {
+    title: "Data Team",
+    path: "/data-team",
+    icon: <Database className="h-5 w-5" />,
+    subItems: [
+      { title: "Prealert", path: "/data-team/prealert", icon: <AlertCircle className="h-4 w-4" /> },
+      { title: "SOCPacked Update", path: "/data-team/socpacked-update", icon: <CheckCircle className="h-4 w-4" /> },
+      { title: "File Upload", path: "/data-team/file-upload", icon: <Upload className="h-4 w-4" /> },
       {
-        title: "Admin",
-        path: "/outbound/admin",
-        icon: <Briefcase className="h-4 w-4" />,
+        title: "Validation",
+        path: "/data-team/validation",
+        icon: <CheckCircle className="h-4 w-4" />,
         subItems: [
-          { title: "Attendance", path: "/outbound/admin/attendance", icon: <Users className="h-4 w-4" /> },
-          { title: "Masterfile", path: "/outbound/admin/masterfile", icon: <FileText className="h-4 w-4" /> },
-          { title: "Attendance History", path: "/outbound/admin/attendance-history", icon: <Calendar className="h-4 w-4" /> },
-          { title: "Breaktime Management", path: "/outbound/admin/breaktime", icon: <Clock className="h-4 w-4" /> },
-          { title: "Leave Management", path: "/outbound/admin/leave", icon: <Calendar className="h-4 w-4" /> },
-          { title: "Workstation", path: "/outbound/admin/workstation", icon: <Briefcase className="h-4 w-4" /> },
+          { title: "Stuckup", path: "/data-team/validation/stuckup", icon: <Anchor className="h-4 w-4" /> },
+          { title: "Shortlanded", path: "/data-team/validation/shortlanded", icon: <AlertTriangle className="h-4 w-4" /> },
         ],
       },
+    ],
+  },
+  {
+    title: "Admin",
+    path: "/admin",
+    icon: <Briefcase className="h-5 w-5" />,
+    subItems: [
+      { title: "Attendance", path: "/admin/attendance", icon: <Users className="h-4 w-4" /> },
+      { title: "Masterfile", path: "/admin/masterfile", icon: <FileText className="h-4 w-4" /> },
+      { title: "Attendance History", path: "/admin/attendance-history", icon: <Calendar className="h-4 w-4" /> },
+      { title: "Breaktime Management", path: "/admin/breaktime", icon: <Clock className="h-4 w-4" /> },
+      { title: "Leave Management", path: "/admin/leave", icon: <Calendar className="h-4 w-4" /> },
+      { title: "Workstation", path: "/admin/workstation", icon: <Briefcase className="h-4 w-4" /> },
     ],
   },
   {
@@ -77,7 +98,7 @@ interface NavItemProps {
   level?: number
 }
 
-function NavItem({ item, isCollapsed, level = 0 }: NavItemProps) {
+const NavItem = memo(function NavItem({ item, isCollapsed, level = 0 }: NavItemProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const location = useLocation()
@@ -91,22 +112,31 @@ function NavItem({ item, isCollapsed, level = 0 }: NavItemProps) {
   const paddingLeft = level === 0 ? "pl-4" : level === 1 ? "pl-10" : "pl-14"
   const shouldShowSubItems = hasSubItems && (isExpanded || isHovered) && !isCollapsed
 
-  const handleChevronClick = (e: React.MouseEvent) => {
+  // Memoized handlers to prevent recreation on every render
+  const handleChevronClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    setIsExpanded(!isExpanded)
-  }
+    setIsExpanded(prev => !prev)
+  }, [])
+
+  const handleMouseEnter = useCallback(() => {
+    if (hasSubItems) setIsHovered(true)
+  }, [hasSubItems])
+
+  const handleMouseLeave = useCallback(() => {
+    if (hasSubItems) setIsHovered(false)
+  }, [hasSubItems])
 
   return (
     <div
-      onMouseEnter={() => hasSubItems && setIsHovered(true)}
-      onMouseLeave={() => hasSubItems && setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <Link
         to={!hasSubItems ? item.path : "#"}
         onClick={(e) => hasSubItems && e.preventDefault()}
         className={cn(
-          "relative flex h-11 items-center gap-3 overflow-hidden rounded-xl py-3 pr-4 text-sm transition-all duration-200 group",
+          "relative flex h-9 items-center gap-2.5 overflow-hidden rounded-lg py-2 pr-3 text-sm transition-all duration-200 group",
           paddingLeft,
           level === 0 && "font-semibold text-base",
           level > 0 && "text-sm font-medium",
@@ -144,7 +174,7 @@ function NavItem({ item, isCollapsed, level = 0 }: NavItemProps) {
         )}
       </Link>
       {shouldShowSubItems && (
-        <div className="space-y-0.125 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="space-y-0.5 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200 ml-2">
           {item.subItems!.map((subItem) => (
             <NavItem
               key={subItem.path}
@@ -157,14 +187,23 @@ function NavItem({ item, isCollapsed, level = 0 }: NavItemProps) {
       )}
     </div>
   )
-}
+})
 
 interface SidebarProps {
   isCollapsed: boolean
   onToggle: () => void
+  activePopup?: SidebarPopupType
+  onPopupChange?: (popup: SidebarPopupType) => void
 }
 
-export function Sidebar({ isCollapsed }: SidebarProps) {
+export function Sidebar({ isCollapsed, onToggle: _onToggle, activePopup, onPopupChange }: SidebarProps) {
+  const bottomMenuItems = [
+    { id: "messages" as const, icon: <MessageSquare className="h-5 w-5" />, label: "Messages", badge: 3, gradient: "from-indigo-500 to-purple-600" },
+    { id: "notifications" as const, icon: <Bell className="h-5 w-5" />, label: "Notifications", badge: 7, gradient: "from-amber-500 to-orange-500" },
+    { id: "help" as const, icon: <HelpCircle className="h-5 w-5" />, label: "Help", badge: 0, gradient: "from-cyan-500 to-blue-500" },
+    { id: "settings" as const, icon: <Settings className="h-5 w-5" />, label: "Settings", badge: 0, gradient: "from-slate-500 to-slate-600" },
+  ]
+
   return (
     <div
       className={cn(
@@ -174,20 +213,20 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
       )}
     >
       <div className={cn(
-        "flex h-20 items-center gap-3 px-5 border-b border-white/10",
+        "flex h-16 items-center gap-3 px-4 border-b border-white/10",
         isCollapsed && "justify-center px-2"
       )}>
         {!isCollapsed ? (
           <>
-            <SpxLogo className="h-10 w-10" />
-            <h2 className="text-lg font-bold text-[hsl(var(--sidebar-foreground))]">SOC Internal TOOL</h2>
+            <SpxLogo className="h-9 w-9" />
+            <h2 className="text-base font-bold text-[hsl(var(--sidebar-foreground))]">SOC Internal TOOL</h2>
           </>
         ) : (
           <SpxLogo className="h-8 w-8" />
         )}
       </div>
 
-      <nav className="flex-1 space-y-0.5 p-4 overflow-y-auto">
+      <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto">
         {menuItems.map((item) => (
           <NavItem
             key={item.path}
@@ -197,37 +236,31 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="border-t border-white/10 p-4 space-y-0.5">
-        <Button
-          variant="ghost"
-          className={cn(
-            "w-full justify-start gap-3 text-[hsl(var(--sidebar-foreground))] hover:bg-white/10 transition-all duration-200",
-            isCollapsed && "justify-center px-2"
-          )}
-        >
-          <Bell className="h-5 w-5" />
-          {!isCollapsed && <span>Notifications</span>}
-        </Button>
-        <Button
-          variant="ghost"
-          className={cn(
-            "w-full justify-start gap-3 text-[hsl(var(--sidebar-foreground))] hover:bg-white/10 transition-all duration-200",
-            isCollapsed && "justify-center px-2"
-          )}
-        >
-          <HelpCircle className="h-5 w-5" />
-          {!isCollapsed && <span>Help</span>}
-        </Button>
-        <Button
-          variant="ghost"
-          className={cn(
-            "w-full justify-start gap-3 text-[hsl(var(--sidebar-foreground))] hover:bg-white/10 transition-all duration-200",
-            isCollapsed && "justify-center px-2"
-          )}
-        >
-          <Settings className="h-5 w-5" />
-          {!isCollapsed && <span>Settings</span>}
-        </Button>
+      <div className="border-t border-white/10 p-3 space-y-1">
+        {bottomMenuItems.map((item) => (
+          <Button
+            key={item.id}
+            variant="ghost"
+            onClick={() => onPopupChange?.(activePopup === item.id ? null : item.id)}
+            className={cn(
+              "w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 relative group",
+              isCollapsed && "justify-center px-2",
+              activePopup === item.id 
+                ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
+                : "text-[hsl(var(--sidebar-foreground))] hover:bg-white/10"
+            )}
+          >
+            <span className="relative">
+              {item.icon}
+              {item.badge > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] px-1 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center font-bold">
+                  {item.badge > 99 ? "99+" : item.badge}
+                </span>
+              )}
+            </span>
+            {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
+          </Button>
+        ))}
       </div>
     </div>
   )

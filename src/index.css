@@ -160,6 +160,31 @@
 }
 
 @layer utilities {
+  /* ===== PERFORMANCE OPTIMIZATION ===== */
+  /* Respect user's motion preferences for accessibility and performance */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Pause animations when element is not visible (use with JS IntersectionObserver) */
+  .animation-paused {
+    animation-play-state: paused !important;
+  }
+
+  /* GPU-accelerated animations - use transform and opacity only */
+  .gpu-accelerated {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
   .animate-slide-in {
     animation: slideIn 0.2s ease-out forwards;
   }
@@ -304,7 +329,9 @@
       0 0 0 1px rgba(255, 255, 255, 0.1),
       0 0 80px rgba(59, 130, 246, 0.2);
     animation: qrPulse 2s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
     transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    will-change: box-shadow;
   }
 
   .qr-wrapper:hover {
@@ -317,6 +344,8 @@
 
   .qr-placeholder {
     animation: placeholderPulse 2s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   @keyframes placeholderPulse {
@@ -399,13 +428,18 @@
     }
   }
 
-  /* Truck Animation */
+  /* Truck Animation - Optimized with GPU acceleration */
   .truck-moving {
     animation: truckDrive 2.5s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform;
+    transform: translateZ(0);
   }
 
   .truck-shadow {
     animation: shadowMove 2.5s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   .motion-lines-container {
@@ -426,30 +460,42 @@
     width: 20px;
     top: 15px;
     animation: motionLineMove 0.8s ease-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   .motion-line-2 {
     width: 25px;
     top: 25px;
     animation: motionLineMove 0.8s ease-out infinite 0.15s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   .motion-line-3 {
     width: 18px;
     top: 35px;
     animation: motionLineMove 0.8s ease-out infinite 0.3s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   .dust-1 {
     animation: dustFade 1s ease-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   .dust-2 {
     animation: dustFade 1s ease-out infinite 0.2s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   .dust-3 {
     animation: dustFade 1s ease-out infinite 0.4s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   @keyframes truckDrive {
@@ -546,34 +592,50 @@
 
   .animate-glow-run {
     animation: glowRun 1.5s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   .animate-glow-run-delayed {
     animation: glowRun 1.5s ease-in-out infinite 0.75s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   .animate-particle-run {
     animation: particleRun 1.7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   .animate-particle-run-delayed {
     animation: particleRun 1.7s cubic-bezier(0.4, 0, 0.2, 1) infinite 0.5s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   .animate-particle-run-fast {
     animation: particleRun 1s cubic-bezier(0.4, 0, 0.2, 1) infinite 0.25s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   .animate-trail-run {
     animation: trailRun 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   .animate-trail-run-delayed {
     animation: trailRun 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite 0.5s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   .animate-pulse-glow {
     animation: pulseGlow 3s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: opacity;
   }
 
   @keyframes glowRun {
@@ -634,14 +696,20 @@
 
   .animate-spin-slow {
     animation: spin 8s linear infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform;
   }
 
   .animate-spin-reverse {
     animation: spin 6s linear infinite reverse;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform;
   }
 
   .animate-scan {
     animation: scan 2s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
   }
 
   @keyframes scan {
@@ -657,6 +725,8 @@
 
   .animate-shadow-pulse {
     animation: shadowPulse 2s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: box-shadow;
   }
 
   @keyframes shadowPulse {
@@ -666,5 +736,121 @@
     50% {
       box-shadow: 0 25px 50px -12px rgb(90 138 143 / 0.25), 0 12px 20px -8px rgb(90 138 143 / 0.2);
     }
+  }
+
+  /* Enhanced Chat Popup Animations */
+  .chat-message-enter {
+    animation: messageSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes messageSlideIn {
+    0% {
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .chat-bubble-hover {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .chat-bubble-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  }
+
+  .emoji-picker-enter {
+    animation: emojiPickerSlideIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes emojiPickerSlideIn {
+    0% {
+      opacity: 0;
+      transform: translateY(10px) scale(0.9);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .typing-dots {
+    display: inline-flex;
+    gap: 2px;
+  }
+
+  .typing-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: currentColor;
+    animation: typingBounce 1.4s infinite ease-in-out;
+  }
+
+  .typing-dot:nth-child(1) {
+    animation-delay: -0.32s;
+  }
+
+  .typing-dot:nth-child(2) {
+    animation-delay: -0.16s;
+  }
+
+  @keyframes typingBounce {
+    0%, 80%, 100% {
+      transform: scale(0.8);
+      opacity: 0.5;
+    }
+    40% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .chat-float-button {
+    animation: floatButton 3s ease-in-out infinite;
+  }
+
+  @keyframes floatButton {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+
+  .message-reaction {
+    animation: reactionPop 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  @keyframes reactionPop {
+    0% {
+      transform: scale(0);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .glass-morphism {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .chat-gradient-bg {
+    background: linear-gradient(135deg, 
+      rgba(59, 130, 246, 0.05) 0%, 
+      rgba(99, 102, 241, 0.05) 50%, 
+      rgba(139, 92, 246, 0.05) 100%);
   }
 }

@@ -19,7 +19,7 @@ export function LoginModal() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      const newSessionId = `seatalk-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      const newSessionId = `seatalk-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
       
       createSession(newSessionId)
       
@@ -27,8 +27,12 @@ export function LoginModal() {
       startPolling(newSessionId)
     }
     return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current)
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
 
   const createSession = async (sid: string) => {
