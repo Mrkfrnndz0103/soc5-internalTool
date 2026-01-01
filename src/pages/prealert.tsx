@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
-import { Search, Download, MoreHorizontal, Folder, CheckCircle, XCircle, Tag } from "lucide-react"
+import { Search, Download, MoreHorizontal, Folder, CheckCircle, XCircle, Tag, Clock, Monitor } from "lucide-react"
 
 type Status = "Pending" | "Pending-Inaccurate" | "Ongoing" | "Done"
 
@@ -65,7 +65,8 @@ export function PrealertPage() {
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [hubFilter, setHubFilter] = useState<string>("")
-  const [dateFilter, setDateFilter] = useState("")
+  const today = new Date().toISOString().slice(0, 10)
+  const [dateFilter, setDateFilter] = useState<string>(today)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [reports, setReports] = useState<Report[]>(() => generateSampleReports(50))
@@ -83,14 +84,28 @@ export function PrealertPage() {
     return map
   }, [reports])
 
+  // Reports filtered by the selected date only (used by the scorecards)
+  const dateFilteredReports = useMemo(() => {
+    if (!dateFilter) return reports
+    return reports.filter((r) => r.date === dateFilter)
+  }, [reports, dateFilter])
+
+  const pendingCount = dateFilteredReports.filter((r) => r.status === "Pending" || r.status === "Pending-Inaccurate").length
+  const ongoingCount = dateFilteredReports.filter((r) => r.status === "Ongoing").length
+  const doneCount = dateFilteredReports.filter((r) => r.status === "Done").length
+
   const filtered = useMemo(() => {
     return reports.filter((r) => {
       if (hubFilter && r.hub !== hubFilter) return false
       if (statusFilter !== "all") {
-        if (statusFilter === "Pending-Green" && r.status !== "Pending") return false
-        if (statusFilter === "Pending-Red" && r.status !== "Pending-Inaccurate") return false
-        if (statusFilter === "Ongoing" && r.status !== "Ongoing") return false
-        if (statusFilter === "Done" && r.status !== "Done") return false
+        if (statusFilter === "Pending") {
+          if (!(r.status === "Pending" || r.status === "Pending-Inaccurate")) return false
+        } else {
+          if (statusFilter === "Pending-Green" && r.status !== "Pending") return false
+          if (statusFilter === "Pending-Red" && r.status !== "Pending-Inaccurate") return false
+          if (statusFilter === "Ongoing" && r.status !== "Ongoing") return false
+          if (statusFilter === "Done" && r.status !== "Done") return false
+        }
       }
       if (dateFilter && r.date !== dateFilter) return false
       if (query) {
@@ -118,6 +133,21 @@ export function PrealertPage() {
     setReports((prev) => prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r)))
     toast({ title: "Status updated", description: `Report ${id} set to ${newStatus}` })
   }
+
+  const toggleStatusFilter = (key: 'Pending' | 'Ongoing' | 'Done') => {
+    if (key === 'Pending') {
+      if (statusFilter === 'Pending') setStatusFilter('all')
+      else setStatusFilter('Pending')
+    } else {
+      if (statusFilter === key) setStatusFilter('all')
+      else setStatusFilter(key)
+    }
+    setPage(1)
+  }
+
+  const isPendingActive = statusFilter === 'Pending' || statusFilter === 'Pending-Green' || statusFilter === 'Pending-Red'
+  const isOngoingActive = statusFilter === 'Ongoing'
+  const isDoneActive = statusFilter === 'Done'
 
   const openBatch = (hub: string, batch: string) => {
     setSelectedBatch({ hub, batch })
@@ -198,6 +228,73 @@ export function PrealertPage() {
 
       {/* Main content */}
       <div className="flex-1 space-y-4">
+          {/* Scorecards - status overview (date-aware, clickable) */}
+        <div className="flex items-center justify-between">
+          <div className="flex-1 grid grid-cols-3 gap-4">
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="Pending reports"
+              aria-pressed={isPendingActive}
+              onClick={() => toggleStatusFilter('Pending')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleStatusFilter('Pending') } }}
+              className={`cursor-pointer bg-white rounded-xl shadow-sm p-4 flex items-center gap-4 transform transition-all duration-150 border-r border-muted/20 pr-6 ${isPendingActive ? 'ring-2 ring-yellow-300 scale-105' : 'hover:scale-105'}`}
+            >
+              <div className={`${isPendingActive ? 'inline-flex items-center justify-center h-16 w-16 rounded-full bg-yellow-600 text-white' : 'inline-flex items-center justify-center h-16 w-16 rounded-full bg-yellow-50 text-yellow-700'}`}>
+                <Clock className="h-8 w-8" aria-hidden />
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Pending</div>
+                <div className="text-3xl font-extrabold">{pendingCount}</div>
+                <div className="text-xs text-muted-foreground mt-1">{dateFilter}</div>
+              </div>
+            </div>
+
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="Ongoing reports"
+              aria-pressed={isOngoingActive}
+              onClick={() => toggleStatusFilter('Ongoing')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleStatusFilter('Ongoing') } }}
+              className={`cursor-pointer bg-white rounded-xl shadow-sm p-4 flex items-center gap-4 transform transition-all duration-150 border-r border-muted/20 pr-6 ${isOngoingActive ? 'ring-2 ring-blue-300 scale-105' : 'hover:scale-105'}`}
+            >
+              <div className={`${isOngoingActive ? 'inline-flex items-center justify-center h-16 w-16 rounded-full bg-blue-600 text-white' : 'inline-flex items-center justify-center h-16 w-16 rounded-full bg-blue-50 text-blue-700'}`}>
+                <Monitor className="h-8 w-8" aria-hidden />
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Ongoing</div>
+                <div className="text-3xl font-extrabold">{ongoingCount}</div>
+                <div className="text-xs text-muted-foreground mt-1">{dateFilter}</div>
+              </div>
+            </div>
+
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="Done reports"
+              aria-pressed={isDoneActive}
+              onClick={() => toggleStatusFilter('Done')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleStatusFilter('Done') } }}
+              className={`cursor-pointer bg-white rounded-xl shadow-sm p-4 flex items-center gap-4 transform transition-all duration-150 ${isDoneActive ? 'ring-2 ring-green-300 scale-105' : 'hover:scale-105'}`}
+            >
+              <div className={`${isDoneActive ? 'inline-flex items-center justify-center h-16 w-16 rounded-full bg-green-600 text-white' : 'inline-flex items-center justify-center h-16 w-16 rounded-full bg-green-50 text-green-700'}`}>
+                <CheckCircle className="h-8 w-8" aria-hidden />
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Done</div>
+                <div className="text-3xl font-extrabold">{doneCount}</div>
+                <div className="text-xs text-muted-foreground mt-1">{dateFilter}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="my-6" aria-hidden>
+          <div className="h-0.5 bg-muted/60 w-full rounded shadow-sm" />
+        </div>
+
+        {/* Filters */}
         <div className="flex items-center justify-between">
           <div className="flex gap-4 items-center">
             <div className="relative">
@@ -218,6 +315,7 @@ export function PrealertPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="Pending">Pending (All)</SelectItem>
                   <SelectItem value="Pending-Green">Pending (New)</SelectItem>
                   <SelectItem value="Pending-Red">Pending (Inaccurate)</SelectItem>
                   <SelectItem value="Ongoing">Ongoing</SelectItem>
