@@ -1,26 +1,896 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap');
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Warm color palette */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+
+    --sidebar-bg: 20 14% 12%;
+    --sidebar-foreground: 30 15% 85%;
+    --sidebar-active: 45 100% 51%;
+    --sidebar-active-foreground: 20 14% 12%;
+    --sidebar-submenu-active: 340 20% 16%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  [data-theme='dark'] {
+    --background: 20 14% 12%;
+    --foreground: 30 15% 95%;
+    --card: 20 14% 16%;
+    --card-foreground: 30 15% 95%;
+    --popover: 20 14% 16%;
+    --popover-foreground: 30 15% 95%;
+    --primary: 25 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 20 14% 20%;
+    --secondary-foreground: 30 15% 95%;
+    --muted: 20 14% 20%;
+    --muted-foreground: 30 10% 65%;
+    --accent: 20 14% 20%;
+    --accent-foreground: 30 15% 95%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 20 14% 20%;
+    --input: 20 14% 20%;
+    --ring: 25 95% 53%;
+
+    --sidebar-bg: 20 14% 8%;
+    --sidebar-foreground: 30 15% 75%;
+    --sidebar-active: 45 100% 51%;
+    --sidebar-active-foreground: 20 14% 12%;
+    --sidebar-submenu-active: 340 20% 16%;
+  }
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  #root {
+    padding: 0;
+  }
+  
+  .app-container {
+    overflow: hidden;
+    height: 100vh;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: theme('fontFamily.sans');
+    font-size: 16px;
+    line-height: 1.5;
+    zoom: 1;
+    transform: scale(1);
+    transform-origin: 0 0;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: theme('fontFamily.display');
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+  
+  /* Ensure proper scaling */
+  html {
+    zoom: 1;
+    transform: scale(1);
+    transform-origin: 0 0;
+  }
+  
+  #root {
+    zoom: 1;
+    transform: scale(1);
+    transform-origin: 0 0;
+  }
+  
+  /* Responsive base font sizes */
+  @media (max-width: 640px) {
+    body {
+      font-size: 14px;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    body {
+      font-size: 17px;
+    }
+  }
+  
+  @media (min-width: 1280px) {
+    body {
+      font-size: 18px;
+    }
+  }
+}
+
+@layer utilities {
+  /* ===== PERFORMANCE OPTIMIZATION ===== */
+  /* Respect user's motion preferences for accessibility and performance */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  .subtle-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+  }
+
+  .subtle-scrollbar::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+
+  .subtle-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .subtle-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.35);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  .subtle-scrollbar:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(100, 116, 139, 0.45);
+  }
+
+  [data-theme='dark'] .subtle-scrollbar,
+  .dark .subtle-scrollbar {
+    scrollbar-color: rgba(148, 163, 184, 0.18) transparent;
+  }
+
+  [data-theme='dark'] .subtle-scrollbar::-webkit-scrollbar-thumb,
+  .dark .subtle-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.18);
+  }
+
+  [data-theme='dark'] .subtle-scrollbar:hover::-webkit-scrollbar-thumb,
+  .dark .subtle-scrollbar:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.26);
+  }
+
+  /* Pause animations when element is not visible (use with JS IntersectionObserver) */
+  .animation-paused {
+    animation-play-state: paused !important;
+  }
+
+  /* GPU-accelerated animations - use transform and opacity only */
+  .gpu-accelerated {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  .animate-slide-in {
+    animation: slideIn 0.2s ease-out forwards;
+  }
+
+  @keyframes slideIn {
+    from {
+      max-height: 0;
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      max-height: 500px;
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Login Modal Animations */
+  .modal-backdrop {
+    animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .modal-container {
+    animation: modalSlowZoom 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98));
+    backdrop-filter: blur(20px);
+    border-radius: 32px;
+    box-shadow: 
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 20px 60px rgba(0, 0, 0, 0.5),
+      0 0 100px rgba(59, 130, 246, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    position: relative;
+  }
+
+  .modal-container::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 32px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      transparent,
+      rgba(255, 255, 255, 0.4),
+      rgba(255, 255, 255, 0.6),
+      transparent,
+      transparent
+    );
+    background-size: 200% 100%;
+    animation: borderRun 5s linear infinite;
+    z-index: -1;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    padding: 3px;
+    filter: blur(8px);
+  }
+
+  @keyframes borderRun {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes modalSlowZoom {
+    0% { 
+      transform: scale(0.8) translateY(30px);
+      opacity: 0;
+    }
+    100% { 
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Button Animations */
+  .login-button {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+  }
+
+  .login-button .button-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 1));
+    border-radius: inherit;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .login-button:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .login-button.active {
+    transform: scale(1.05);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 
+      0 12px 32px rgba(0, 0, 0, 0.3),
+      0 0 0 4px rgba(255, 255, 255, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .login-button.active .button-bg {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .login-button.active {
+    color: rgb(15, 23, 42);
+  }
+
+  /* QR Content Animation */
+  .qr-content {
+    animation: slideInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .qr-wrapper {
+    background: white;
+    padding: 24px;
+    border-radius: 24px;
+    display: inline-block;
+    box-shadow: 
+      0 20px 60px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 0 80px rgba(59, 130, 246, 0.2);
+    animation: qrPulse 2s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    will-change: box-shadow;
+  }
+
+  .qr-wrapper:hover {
+    transform: scale(1.12);
+    box-shadow: 
+      0 30px 90px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.4),
+      0 0 180px rgba(139, 92, 246, 0.6);
+  }
+
+  .qr-placeholder {
+    animation: placeholderPulse 2s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  @keyframes placeholderPulse {
+    0%, 100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.05);
+    }
+  }
+
+  @keyframes slideInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes qrPulse {
+    0%, 100% {
+      box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.1),
+        0 0 80px rgba(59, 130, 246, 0.2);
+    }
+    50% {
+      box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.1),
+        0 0 100px rgba(59, 130, 246, 0.4);
+    }
+  }
+
+  /* Password Form Animation */
+  .password-form {
+    animation: slideInRight 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Chat Box */
+  .chat-box {
+    width: 380px;
+    background: linear-gradient(135deg, 
+      rgba(100, 116, 139, 0.2) 0%,
+      rgba(71, 85, 105, 0.25) 100%);
+    backdrop-filter: blur(40px) saturate(180%);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+      0 20px 60px rgba(0, 0, 0, 0.4),
+      0 0 80px rgba(59, 130, 246, 0.2);
+    animation: chatSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes chatSlideIn {
+    from {
+      transform: translateY(100%) scale(0.9);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Truck Animation - Optimized with GPU acceleration */
+  .truck-moving {
+    animation: truckDrive 2.5s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform;
+    transform: translateZ(0);
+  }
+
+  .truck-shadow {
+    animation: shadowMove 2.5s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  .motion-lines-container {
+    position: relative;
+    width: 30px;
+    height: 50px;
+    margin-right: -10px;
+  }
+
+  .motion-line {
+    position: absolute;
+    height: 2px;
+    background: linear-gradient(to right, transparent, #60a5fa, transparent);
+    border-radius: 2px;
+  }
+
+  .motion-line-1 {
+    width: 20px;
+    top: 15px;
+    animation: motionLineMove 0.8s ease-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  .motion-line-2 {
+    width: 25px;
+    top: 25px;
+    animation: motionLineMove 0.8s ease-out infinite 0.15s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  .motion-line-3 {
+    width: 18px;
+    top: 35px;
+    animation: motionLineMove 0.8s ease-out infinite 0.3s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  .dust-1 {
+    animation: dustFade 1s ease-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  .dust-2 {
+    animation: dustFade 1s ease-out infinite 0.2s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  .dust-3 {
+    animation: dustFade 1s ease-out infinite 0.4s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  @keyframes truckDrive {
+    0%, 100% {
+      transform: translateY(0) translateX(0);
+    }
+    25% {
+      transform: translateY(-3px) translateX(2px);
+    }
+    50% {
+      transform: translateY(0) translateX(3px);
+    }
+    75% {
+      transform: translateY(-2px) translateX(1px);
+    }
+  }
+
+  @keyframes shadowMove {
+    0%, 100% {
+      transform: scaleX(1);
+      opacity: 0.2;
+    }
+    50% {
+      transform: scaleX(0.9);
+      opacity: 0.15;
+    }
+  }
+
+  @keyframes motionLineMove {
+    0% {
+      opacity: 0.7;
+      transform: translateX(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+  }
+
+  @keyframes dustFade {
+    0% {
+      opacity: 0.5;
+      transform: translateX(0) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(-15px) scale(1.8);
+    }
+  }
+
+  .card-shadow {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  }
+
+  .card-shadow-lg {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08);
+  }
+
+  .truck-button {
+    transform-style: preserve-3d;
+    transform: rotateX(var(--rx, 0deg)) translateZ(0);
+    transition: transform .5s, border-radius .3s linear var(--br-d, 0s);
+  }
+
+  .truck-button::before,
+  .truck-button::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 6px;
+    display: block;
+    background: var(--b, var(--street));
+    transform-origin: 0 100%;
+    transform: rotateX(90deg) scaleX(var(--sy, 1));
+  }
+
+  .truck-button::after {
+    --sy: var(--progress, 0);
+    --b: var(--street-fill);
+  }
+
+  .truck-button.animation {
+    --rx: -90deg;
+    --br: 0;
+  }
+
+  .truck-button.animation.done {
+    --rx: 0deg;
+    --br: 9999px;
+    --br-d: .2s;
+  }
+
+  .animate-glow-run {
+    animation: glowRun 1.5s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  .animate-glow-run-delayed {
+    animation: glowRun 1.5s ease-in-out infinite 0.75s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  .animate-particle-run {
+    animation: particleRun 1.7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  .animate-particle-run-delayed {
+    animation: particleRun 1.7s cubic-bezier(0.4, 0, 0.2, 1) infinite 0.5s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  .animate-particle-run-fast {
+    animation: particleRun 1s cubic-bezier(0.4, 0, 0.2, 1) infinite 0.25s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  .animate-trail-run {
+    animation: trailRun 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  .animate-trail-run-delayed {
+    animation: trailRun 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite 0.5s;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  .animate-pulse-glow {
+    animation: pulseGlow 3s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: opacity;
+  }
+
+  @keyframes glowRun {
+    0% {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(200%);
+      opacity: 0;
+    }
+  }
+
+  @keyframes particleRun {
+    0% {
+      transform: translateY(-30px) scale(0.8);
+      opacity: 0;
+    }
+    5% {
+      opacity: 1;
+      transform: translateY(-20px) scale(1);
+    }
+    95% {
+      opacity: 1;
+      transform: translateY(250px) scale(1);
+    }
+    100% {
+      transform: translateY(260px) scale(0.8);
+      opacity: 0;
+    }
+  }
+
+  @keyframes trailRun {
+    0% {
+      transform: translateY(-50px);
+      opacity: 0;
+    }
+    15% {
+      opacity: 0.6;
+    }
+    100% {
+      transform: translateY(260px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+
+  .animate-spin-slow {
+    animation: spin 8s linear infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform;
+  }
+
+  .animate-spin-reverse {
+    animation: spin 6s linear infinite reverse;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform;
+  }
+
+  .animate-scan {
+    animation: scan 2s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: transform, opacity;
+  }
+
+  @keyframes scan {
+    0%, 100% {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    50% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-shadow-pulse {
+    animation: shadowPulse 2s ease-in-out infinite;
+    animation-play-state: var(--animation-state, running);
+    will-change: box-shadow;
+  }
+
+  @keyframes shadowPulse {
+    0%, 100% {
+      box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    }
+    50% {
+      box-shadow: 0 25px 50px -12px rgb(90 138 143 / 0.25), 0 12px 20px -8px rgb(90 138 143 / 0.2);
+    }
+  }
+
+  /* Enhanced Chat Popup Animations */
+  .chat-message-enter {
+    animation: messageSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes messageSlideIn {
+    0% {
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .chat-bubble-hover {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .chat-bubble-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  }
+
+  .emoji-picker-enter {
+    animation: emojiPickerSlideIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes emojiPickerSlideIn {
+    0% {
+      opacity: 0;
+      transform: translateY(10px) scale(0.9);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .typing-dots {
+    display: inline-flex;
+    gap: 2px;
+  }
+
+  .typing-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: currentColor;
+    animation: typingBounce 1.4s infinite ease-in-out;
+  }
+
+  .typing-dot:nth-child(1) {
+    animation-delay: -0.32s;
+  }
+
+  .typing-dot:nth-child(2) {
+    animation-delay: -0.16s;
+  }
+
+  @keyframes typingBounce {
+    0%, 80%, 100% {
+      transform: scale(0.8);
+      opacity: 0.5;
+    }
+    40% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .chat-float-button {
+    animation: floatButton 3s ease-in-out infinite;
+  }
+
+  @keyframes floatButton {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+
+  .message-reaction {
+    animation: reactionPop 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  @keyframes reactionPop {
+    0% {
+      transform: scale(0);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .glass-morphism {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .chat-gradient-bg {
+    background: linear-gradient(135deg, 
+      rgba(59, 130, 246, 0.05) 0%, 
+      rgba(99, 102, 241, 0.05) 50%, 
+      rgba(139, 92, 246, 0.05) 100%);
+  }
 }
