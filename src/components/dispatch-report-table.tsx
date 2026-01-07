@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useMemo } from "react"
+import { useState, useRef, useEffect, useMemo, type DragEvent } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "motion/react"
 import { 
@@ -13,13 +13,16 @@ import {
   Calendar,
   Package,
   TrendingUp,
-  Zap
+  Zap,
+  ChevronUp,
+  ChevronDown
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/components/ui/use-toast"
+import { lookupApi } from "@/lib/api"
 
 interface DispatchRow {
   id: string
@@ -72,6 +75,21 @@ type StoredReport = {
   editHistory?: EditEntry[]
 }
 
+type ClusterOption = {
+  cluster_name: string
+  region: string | null
+}
+
+type HubOption = {
+  hub_name: string
+  dock_number: string | null
+}
+
+type ProcessorOption = {
+  name: string
+  ops_id: string
+}
+
 const STORAGE_KEY = "soc5_dispatch_reports"
 
 function loadStoredReports(): StoredReport[] {
@@ -92,46 +110,97 @@ function saveStoredReports(reports: StoredReport[]) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(reports))
 }
 
+const createRowId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+const createEmptyRow = (overrides: Partial<DispatchRow> = {}): DispatchRow => ({
+  id: createRowId(),
+  batchNumber: 0,
+  clusterName: "",
+  station: "",
+  region: "",
+  countTO: 0,
+  totalOIDLoaded: 0,
+  actualDockedTime: "",
+  dockNumber: "",
+  actualDepartTime: "",
+  processorName: "",
+  lHTripNumber: "",
+  plateNumber: "",
+  fleetSize: "4WH",
+  assignedPIC: "",
+  dockConfirmed: false,
+  loadPercentage: 0,
+  ...overrides,
+})
+
 const fleetSizes = ["4WH", "6W", "6WF", "10WH", "CV"]
-const mockClusterNames = ["MNL-001", "CBU-002", "CEB-003", "DVO-004", "ZAM-005"]
-const mockStations = ["Hub-A", "Hub-B", "Hub-C", "Hub-D"]
-const mockRegions = ["NCR", "LUZON", "VISAYAS", "MINDANAO"]
-const mockProcessors = ["Juan Dela Cruz", "Maria Santos", "Jose Reyes", "Ana Garcia"]
+
+const buildDragPreview = (label: string) => {
+  const wrapper = document.createElement("div")
+  wrapper.style.position = "fixed"
+  wrapper.style.top = "0"
+  wrapper.style.left = "0"
+  wrapper.style.padding = "8px 12px"
+  wrapper.style.background = "#FFF7ED"
+  wrapper.style.border = "1px solid #FDBA74"
+  wrapper.style.borderRadius = "12px"
+  wrapper.style.boxShadow = "0 12px 24px rgba(15, 23, 42, 0.15)"
+  wrapper.style.display = "inline-flex"
+  wrapper.style.alignItems = "center"
+  wrapper.style.gap = "8px"
+  wrapper.style.color = "#7C2D12"
+  wrapper.style.fontSize = "14px"
+  wrapper.style.fontWeight = "600"
+  wrapper.style.pointerEvents = "none"
+  wrapper.style.zIndex = "9999"
+
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+  icon.setAttribute("viewBox", "0 0 24 24")
+  icon.setAttribute("width", "16")
+  icon.setAttribute("height", "16")
+  icon.setAttribute("fill", "none")
+  icon.setAttribute("stroke", "currentColor")
+  icon.setAttribute("stroke-width", "2")
+  icon.setAttribute("stroke-linecap", "round")
+  icon.setAttribute("stroke-linejoin", "round")
+  const pinPath = document.createElementNS("http://www.w3.org/2000/svg", "path")
+  pinPath.setAttribute("d", "M12 22s8-4 8-10a8 8 0 1 0-16 0c0 6 8 10 8 10z")
+  const pinDot = document.createElementNS("http://www.w3.org/2000/svg", "circle")
+  pinDot.setAttribute("cx", "12")
+  pinDot.setAttribute("cy", "12")
+  pinDot.setAttribute("r", "3")
+  icon.appendChild(pinPath)
+  icon.appendChild(pinDot)
+
+  const text = document.createElement("span")
+  text.textContent = label || "Auto-filled"
+
+  wrapper.appendChild(icon)
+  wrapper.appendChild(text)
+
+  return wrapper
+}
 
 export function DispatchReportTable() {
   const router = useRouter()
   const { user } = useAuth()
   const { toast } = useToast()
   const [rows, setRows] = useState<DispatchRow[]>([
-    {
-      id: "1",
-      batchNumber: 1,
-      clusterName: "",
-      station: "",
-      region: "",
-      countTO: 0,
-      totalOIDLoaded: 0,
-      actualDockedTime: "",
-      dockNumber: "",
-      actualDepartTime: "",
-      processorName: "",
-      lHTripNumber: "",
-      plateNumber: "",
-      fleetSize: "4WH",
-      assignedPIC: "",
-      dockConfirmed: false,
-      loadPercentage: 0
-    }
+    createEmptyRow({ id: "1", batchNumber: 1 })
   ])
   const [truckLoadPercentage, setTruckLoadPercentage] = useState(0)
   const [selectedFleetSize, setSelectedFleetSize] = useState<string>("6WH")
   
-  const [filteredClusters, setFilteredClusters] = useState<string[]>([])
-  const [filteredProcessors, setFilteredProcessors] = useState<string[]>([])
+  const [filteredClusters, setFilteredClusters] = useState<ClusterOption[]>([])
+  const [filteredProcessors, setFilteredProcessors] = useState<ProcessorOption[]>([])
   const [showClusterDropdown, setShowClusterDropdown] = useState<string | null>(null)
   const [showProcessorDropdown, setShowProcessorDropdown] = useState<string | null>(null)
   const tableRef = useRef<HTMLDivElement>(null)
   const [isVisible, setIsVisible] = useState(true)
+  const [draggingRowId, setDraggingRowId] = useState<string | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null)
+  const clusterRequestId = useRef(0)
+  const processorRequestId = useRef(0)
 
   // Pause animations when component is not visible to save resources
   useEffect(() => {
@@ -158,80 +227,129 @@ export function DispatchReportTable() {
     })
   }, [rows.length])
 
-  // Auto-fill station and region based on cluster
-  const handleClusterChange = (rowId: string, value: string) => {
-    setRows(prevRows => 
-      prevRows.map(row => {
-        if (row.id === rowId) {
-          const clusterIndex = mockClusterNames.indexOf(value)
-          return {
-            ...row,
-            clusterName: value,
-            station: clusterIndex >= 0 ? mockStations[clusterIndex % mockStations.length] : "",
-            region: clusterIndex >= 0 ? mockRegions[clusterIndex % mockRegions.length] : ""
-          }
-        }
-        return row
+  const applyClusterSelection = async (rowId: string, cluster: ClusterOption) => {
+    clusterRequestId.current += 1
+    setFilteredClusters([])
+    const response = await lookupApi.getHubs(cluster.cluster_name)
+    if (response.error) {
+      toast({
+        variant: "destructive",
+        title: "Lookup failed",
+        description: response.error,
       })
-    )
+      return
+    }
+
+    const hubs = (Array.isArray(response.data) ? response.data : []) as HubOption[]
+
+    setRows(prevRows => {
+      const rowIndex = prevRows.findIndex(row => row.id === rowId)
+      if (rowIndex === -1) return prevRows
+      const baseRow = prevRows[rowIndex]
+      const region = cluster.region || baseRow.region
+      const nextRows = [...prevRows]
+
+      if (hubs.length === 0) {
+        nextRows[rowIndex] = {
+          ...baseRow,
+          clusterName: cluster.cluster_name,
+          region,
+          station: "",
+          dockNumber: "",
+          dockConfirmed: false,
+        }
+        return nextRows
+      }
+
+      const [firstHub, ...restHubs] = hubs
+      nextRows[rowIndex] = {
+        ...baseRow,
+        clusterName: cluster.cluster_name,
+        region,
+        station: firstHub.hub_name || "",
+        dockNumber: firstHub.dock_number || "",
+        dockConfirmed: false,
+      }
+
+      if (restHubs.length > 0) {
+        const extraRows = restHubs.map((hub) =>
+          createEmptyRow({
+            clusterName: cluster.cluster_name,
+            region,
+            station: hub.hub_name || "",
+            dockNumber: hub.dock_number || "",
+          })
+        )
+        nextRows.splice(rowIndex + 1, 0, ...extraRows)
+      }
+      return nextRows
+    })
+
+    if (hubs.length > 1) {
+      toast({
+        title: "Cluster split",
+        description: `Cluster maps to ${hubs.length} hubs - added ${hubs.length - 1} row(s).`,
+      })
+    }
   }
 
   // Filter clusters based on input
   const handleClusterInput = (rowId: string, value: string) => {
-    handleClusterChange(rowId, value)
-    
-    if (value.length >= 3) {
-      const filtered = mockClusterNames.filter(cluster => 
-        cluster.toLowerCase().includes(value.toLowerCase())
+    setRows(prevRows =>
+      prevRows.map(row =>
+        row.id === rowId
+          ? { ...row, clusterName: value, station: "", region: "", dockNumber: "", dockConfirmed: false }
+          : row
       )
-      setFilteredClusters(filtered)
-      setShowClusterDropdown(rowId)
+    )
+
+    if (value.length >= 3) {
+      const requestId = ++clusterRequestId.current
+      lookupApi.getClusters(undefined, value).then(({ data, error }) => {
+        if (requestId !== clusterRequestId.current) return
+        if (error || !Array.isArray(data)) {
+          setFilteredClusters([])
+          setShowClusterDropdown(null)
+          return
+        }
+        setFilteredClusters(data as ClusterOption[])
+        setShowClusterDropdown(data.length > 0 ? rowId : null)
+      })
     } else {
+      setFilteredClusters([])
       setShowClusterDropdown(null)
     }
   }
 
   // Filter processors based on input
   const handleProcessorInput = (rowId: string, value: string) => {
-    setRows(prevRows => 
-      prevRows.map(row => 
+    setRows(prevRows =>
+      prevRows.map(row =>
         row.id === rowId ? { ...row, processorName: value } : row
       )
     )
-    
+
     if (value.length >= 3) {
-      const filtered = mockProcessors.filter(processor => 
-        processor.toLowerCase().includes(value.toLowerCase())
-      )
-      setFilteredProcessors(filtered)
-      setShowProcessorDropdown(rowId)
+      const requestId = ++processorRequestId.current
+      lookupApi.getProcessors(value).then(({ data, error }) => {
+        if (requestId !== processorRequestId.current) return
+        if (error || !Array.isArray(data)) {
+          setFilteredProcessors([])
+          setShowProcessorDropdown(null)
+          return
+        }
+        setFilteredProcessors(data as ProcessorOption[])
+        setShowProcessorDropdown(data.length > 0 ? rowId : null)
+      })
     } else {
+      setFilteredProcessors([])
       setShowProcessorDropdown(null)
     }
   }
 
   // Add new row
   const addRow = () => {
-    const newRow: DispatchRow = {
-      id: Date.now().toString(),
-      batchNumber: rows.length + 1,
-      clusterName: "",
-      station: "",
-      region: "",
-      countTO: 0,
-      totalOIDLoaded: 0,
-      actualDockedTime: "",
-      dockNumber: `D-${rows.length + 1}`,
-      actualDepartTime: "",
-      processorName: "",
-      lHTripNumber: "",
-      plateNumber: "",
-      fleetSize: "4WH",
-      assignedPIC: "",
-      dockConfirmed: false,
-      loadPercentage: 0
-    }
-    setRows([...rows, newRow])
+    setRows(prevRows => [...prevRows, createEmptyRow()])
   }
 
   // Delete row
@@ -241,25 +359,7 @@ export function DispatchReportTable() {
 
   // Clear all rows
   const clearAll = () => {
-    setRows([{
-      id: "1",
-      batchNumber: 1,
-      clusterName: "",
-      station: "",
-      region: "",
-      countTO: 0,
-      totalOIDLoaded: 0,
-      actualDockedTime: "",
-      dockNumber: "",
-      actualDepartTime: "",
-      processorName: "",
-      lHTripNumber: "",
-      plateNumber: "",
-      fleetSize: "4WH",
-      assignedPIC: "",
-      dockConfirmed: false,
-      loadPercentage: 0
-    }])
+    setRows([createEmptyRow({ id: "1", batchNumber: 1 })])
     setTruckLoadPercentage(0)
   }
 
@@ -272,9 +372,70 @@ export function DispatchReportTable() {
     )
   }
 
+  const moveRow = (rowId: string, direction: -1 | 1) => {
+    setRows(prevRows => {
+      const index = prevRows.findIndex(row => row.id === rowId)
+      const nextIndex = index + direction
+      if (index === -1 || nextIndex < 0 || nextIndex >= prevRows.length) return prevRows
+      const nextRows = [...prevRows]
+      const [moved] = nextRows.splice(index, 1)
+      nextRows.splice(nextIndex, 0, moved)
+      return nextRows
+    })
+  }
+
+  const moveRowTo = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return
+    setRows(prevRows => {
+      const sourceIndex = prevRows.findIndex(row => row.id === sourceId)
+      const targetIndex = prevRows.findIndex(row => row.id === targetId)
+      if (sourceIndex === -1 || targetIndex === -1) return prevRows
+      const nextRows = [...prevRows]
+      const [moved] = nextRows.splice(sourceIndex, 1)
+      const insertIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+      nextRows.splice(insertIndex, 0, moved)
+      return nextRows
+    })
+  }
+
+  const handleDragStart = (event: DragEvent<HTMLElement>, rowId: string, label: string) => {
+    event.dataTransfer.effectAllowed = "move"
+    event.dataTransfer.setData("text/plain", rowId)
+    const preview = buildDragPreview(label)
+    document.body.appendChild(preview)
+    event.dataTransfer.setDragImage(preview, 16, 16)
+    window.setTimeout(() => {
+      preview.remove()
+    }, 0)
+    setDraggingRowId(rowId)
+  }
+
+  const handleDragOver = (event: DragEvent<HTMLTableRowElement>, rowId: string) => {
+    if (!draggingRowId || draggingRowId === rowId) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = "move"
+    setDropTargetId(rowId)
+  }
+
+  const handleDrop = (event: DragEvent<HTMLTableRowElement>, rowId: string) => {
+    event.preventDefault()
+    const sourceId = event.dataTransfer.getData("text/plain") || draggingRowId
+    if (!sourceId) return
+    moveRowTo(sourceId, rowId)
+    setDraggingRowId(null)
+    setDropTargetId(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggingRowId(null)
+    setDropTargetId(null)
+  }
+
   // Calculate metrics
   const totalBatches = rows.length
   const totalVolume = rows.reduce((sum, row) => sum + row.totalOIDLoaded, 0)
+  const draggingIndex = draggingRowId ? rows.findIndex(row => row.id === draggingRowId) : -1
+  const dropTargetIndex = dropTargetId ? rows.findIndex(row => row.id === dropTargetId) : -1
 
   // Memoize load fill color to prevent recalculation on every render
   const loadFillColor = useMemo(() => {
@@ -986,41 +1147,30 @@ export function DispatchReportTable() {
       </div>
 
       {/* Escalations Table */}
-      <div 
-        className="bg-white rounded-2xl shadow-lg overflow-hidden"
-        style={{
-          padding: '20px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-        }}
-      >
-        <div ref={tableRef} className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr 
-                style={{
-                  height: '56px',
-                  background: '#F8FAFC',
-                  borderBottom: '1px solid #E2E8F0'
-                }}
-              >
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Batch #</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Cluster Name</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Station</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Region</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Count of TO</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Total OID Loaded</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Actual Docked Time</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Dock #</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Actual Depart Time</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Name of Processor</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>LH Trip #</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Plate #</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Fleet Size</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Assigned PIC / OPS Coor</th>
-                <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ color: '#64748B', fontSize: '12px' }}>Actions</th>
+      <div className="relative rounded-3xl border border-slate-200/70 bg-white/80 shadow-[0_18px_45px_rgba(15,23,42,0.08)] overflow-visible backdrop-blur">
+        <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-slate-200/80 to-transparent" />
+        <div ref={tableRef} className="overflow-x-auto overflow-y-visible min-h-[360px] p-3">
+          <table className="w-full border-collapse text-xs text-slate-700">
+            <thead className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur">
+              <tr className="h-9 border-b border-slate-200/70">
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Batch #</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Cluster Name</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Station</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Region</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Count of TO</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Total OID Loaded</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Actual Docked Time</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Dock #</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Actual Depart Time</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Name of Processor</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">LH Trip #</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Plate #</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Fleet Size</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Assigned PIC / OPS Coor</th>
+                <th className="px-2 py-1.5 text-left font-semibold text-[10px] uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-100">
               <AnimatePresence>
                 {rows.map((row, index) => (
                   <motion.tr
@@ -1029,86 +1179,141 @@ export function DispatchReportTable() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ delay: index * 0.05 }}
-                    className="hover:bg-gradient-to-r hover:from-sky-50 hover:to-blue-50 transition-all duration-200 border-l-4 border-l-transparent hover:border-l-sky-400"
-                    style={{ height: '52px' }}
+                    onDragOver={(event) => handleDragOver(event, row.id)}
+                    onDrop={(event) => handleDrop(event, row.id)}
+                    className={`transition-colors duration-200 ${index % 2 === 0 ? "bg-white" : "bg-slate-50/40"} hover:bg-slate-50/80 border-l-2 border-l-transparent hover:border-sky-400 ${dropTargetId === row.id && draggingRowId ? "bg-amber-50 ring-2 ring-amber-200 shadow-sm" : ""} ${draggingRowId ? "transition-transform duration-200 ease-in-out" : ""}`}
+                    style={{
+                      height: '40px',
+                      transform: (() => {
+                        const shift =
+                          draggingRowId &&
+                          dropTargetId &&
+                          row.id !== draggingRowId &&
+                          draggingIndex !== -1 &&
+                          dropTargetIndex !== -1 &&
+                          ((draggingIndex < dropTargetIndex && index > draggingIndex && index <= dropTargetIndex) ||
+                            (draggingIndex > dropTargetIndex && index >= dropTargetIndex && index < draggingIndex))
+                            ? `translateY(${draggingIndex < dropTargetIndex ? "-40px" : "40px"})`
+                            : ""
+                        const target =
+                          dropTargetId === row.id &&
+                          draggingRowId &&
+                          draggingIndex !== -1 &&
+                          dropTargetIndex !== -1
+                            ? ` translateY(${draggingIndex < dropTargetIndex ? "-6px" : "6px"})`
+                            : ""
+                        const combined = `${shift}${target}`.trim()
+                        return combined || undefined
+                      })(),
+                    }}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-sky-100 to-sky-200 text-sky-800 font-bold text-sm shadow-sm">
+                    <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
+                      <span className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-gradient-to-br from-sky-100 to-sky-200 text-sky-800 font-bold text-xs shadow-sm">
                         {row.batchNumber}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap relative">
+                    <td className="px-2 py-1.5 whitespace-nowrap relative border-l border-slate-200/70 first:border-l-0">
                       <Input
                         value={row.clusterName}
                         onChange={(e) => handleClusterInput(row.id, e.target.value)}
                         placeholder="Type 3+ chars..."
-                        className="w-36 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                        style={{ fontSize: '14px' }}
+                        className="w-32 h-8 text-xs border-gray-200 rounded-lg bg-slate-50/80 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 focus:bg-white"
                       />
                       {showClusterDropdown === row.id && filteredClusters.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-auto">
+                        <div className="absolute z-50 mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-auto">
                           {filteredClusters.map(cluster => (
                             <div
-                              key={cluster}
+                              key={cluster.cluster_name}
                               onClick={() => {
-                                handleClusterChange(row.id, cluster)
                                 setShowClusterDropdown(null)
+                                applyClusterSelection(row.id, cluster)
                               }}
                               className="px-4 py-3 hover:bg-sky-50 cursor-pointer text-sm transition-colors"
                             >
-                              {cluster}
+                              <div className="font-medium text-gray-900">{cluster.cluster_name}</div>
+                              <div className="text-xs text-gray-500">{cluster.region}</div>
                             </div>
                           ))}
                         </div>
                       )}
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <MapPin className="h-4 w-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-600 font-medium" style={{ fontSize: '14px' }}>{row.station || "Auto-filled"}</span>
+                    <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
+                      <div className="flex items-center gap-3">
+                        <MapPin className="h-4 w-4 text-gray-400" />
+                        <div
+                          className={`flex items-center gap-2 cursor-grab active:cursor-grabbing transition-transform duration-150 ${draggingRowId === row.id ? "opacity-60" : ""} ${dropTargetId === row.id && draggingRowId ? "text-amber-700" : ""}`}
+                          draggable
+                          onDragStart={(event) => handleDragStart(event, row.id, row.station)}
+                          onDragEnd={handleDragEnd}
+                          aria-label="Drag row to reorder"
+                        >
+                          <span className="text-xs text-gray-600 font-medium">
+                            {row.station || "Auto-filled"}
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-gray-400 hover:text-gray-700"
+                            onClick={() => moveRow(row.id, -1)}
+                            disabled={index === 0}
+                            aria-label="Move row up"
+                          >
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-gray-400 hover:text-gray-700"
+                            onClick={() => moveRow(row.id, 1)}
+                            disabled={index === rows.length - 1}
+                            aria-label="Move row down"
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      <Badge variant="secondary" className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-700">
+                    <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
+                      <Badge variant="secondary" className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
                         {row.region || "Auto-filled"}
                       </Badge>
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
                       <Input
                         type="number"
                         min="0"
                         value={row.countTO}
                         onChange={(e) => handleCellEdit(row.id, 'countTO', parseInt(e.target.value) || 0)}
-                        className="w-24 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                        style={{ fontSize: '14px' }}
+                        className="w-20 h-8 text-xs border-gray-200 rounded-lg bg-slate-50/80 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 focus:bg-white"
                       />
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
                       <Input
                         type="number"
                         min="0"
                         value={row.totalOIDLoaded}
                         onChange={(e) => handleCellEdit(row.id, 'totalOIDLoaded', parseInt(e.target.value) || 0)}
-                        className="w-28 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                        style={{ fontSize: '14px' }}
+                        className="w-24 h-8 text-xs border-gray-200 rounded-lg bg-slate-50/80 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 focus:bg-white"
                       />
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
                       <Input
                         type="datetime-local"
                         value={row.actualDockedTime}
                         onChange={(e) => handleCellEdit(row.id, 'actualDockedTime', e.target.value)}
-                        className="w-40 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                        style={{ fontSize: '14px' }}
+                        className="w-32 h-8 text-xs border-gray-200 rounded-lg bg-slate-50/80 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 focus:bg-white"
                       />
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
                       <div className="flex items-center gap-3">
                         <Input
                           value={row.dockNumber}
                           onChange={(e) => handleCellEdit(row.id, 'dockNumber', e.target.value)}
-                          className="w-24 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                          style={{ fontSize: '14px' }}
+                          className="w-20 h-8 text-xs border-gray-200 rounded-lg bg-slate-50/80 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 focus:bg-white"
                         />
                         <input
                           type="checkbox"
@@ -1118,88 +1323,85 @@ export function DispatchReportTable() {
                         />
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
                       <Input
                         type="datetime-local"
                         value={row.actualDepartTime}
                         onChange={(e) => handleCellEdit(row.id, 'actualDepartTime', e.target.value)}
                         min={row.actualDockedTime}
-                        className="w-40 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                        style={{ fontSize: '14px' }}
+                        className="w-32 h-8 text-xs border-gray-200 rounded-lg bg-slate-50/80 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 focus:bg-white"
                       />
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap relative">
+                    <td className="px-2 py-1.5 whitespace-nowrap relative border-l border-slate-200/70 first:border-l-0">
                       <Input
                         value={row.processorName}
                         onChange={(e) => handleProcessorInput(row.id, e.target.value)}
                         placeholder="Type 3+ chars..."
-                        className="w-36 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                        style={{ fontSize: '14px' }}
+                        className="w-32 h-8 text-xs border-gray-200 rounded-lg bg-slate-50/80 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 focus:bg-white"
                       />
                       {showProcessorDropdown === row.id && filteredProcessors.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-auto">
+                        <div className="absolute z-50 mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-auto">
                           {filteredProcessors.map(processor => (
                             <div
-                              key={processor}
+                              key={processor.ops_id || processor.name}
                               onClick={() => {
-                                handleCellEdit(row.id, 'processorName', processor)
+                                processorRequestId.current += 1
+                                setFilteredProcessors([])
+                                handleCellEdit(row.id, 'processorName', processor.name)
                                 setShowProcessorDropdown(null)
                               }}
                               className="px-4 py-3 hover:bg-sky-50 cursor-pointer text-sm transition-colors"
                             >
-                              {processor}
+                              <div className="font-medium text-gray-900">{processor.name}</div>
+                              <div className="text-xs text-gray-500">{processor.ops_id}</div>
                             </div>
                           ))}
                         </div>
                       )}
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
                       <Input
                         value={row.lHTripNumber}
                         onChange={(e) => handleCellEdit(row.id, 'lHTripNumber', e.target.value.toUpperCase())}
                         placeholder="LT..."
-                        className="w-28 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100 uppercase"
-                        style={{ fontSize: '14px' }}
+                        className="w-24 h-8 text-xs border-gray-200 rounded-lg bg-slate-50/80 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 uppercase focus:bg-white"
                       />
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
                       <Input
                         value={row.plateNumber}
                         onChange={(e) => handleCellEdit(row.id, 'plateNumber', e.target.value.toUpperCase())}
-                        className="w-24 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100 uppercase"
-                        style={{ fontSize: '14px' }}
+                        className="w-20 h-8 text-xs border-gray-200 rounded-lg bg-slate-50/80 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 uppercase focus:bg-white"
                       />
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
                       <select
                         value={row.fleetSize}
                         onChange={(e) => handleCellEdit(row.id, 'fleetSize', e.target.value)}
-                        className="w-20 h-10 text-sm border-gray-200 rounded-xl px-3 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                        style={{ fontSize: '14px' }}
+                        className="w-[72px] h-8 text-xs border-gray-200 rounded-lg bg-slate-50/80 px-2 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 focus:bg-white"
                       >
                         {fleetSizes.map(size => (
                           <option key={size} value={size}>{size}</option>
                         ))}
                       </select>
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-gray-400" />
                         <Input
                           value={row.assignedPIC}
                           onChange={(e) => handleCellEdit(row.id, 'assignedPIC', e.target.value)}
                           placeholder="OPS ID..."
-                          className="w-28 h-10 text-sm border-gray-200 rounded-xl focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                          style={{ fontSize: '14px' }}
+                          className="w-24 h-8 text-xs border-gray-200 rounded-lg bg-slate-50/80 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 focus:bg-white"
                         />
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
                       <Button
                         onClick={() => deleteRow(row.id)}
                         variant="ghost"
                         size="sm"
-                        className="h-10 w-10 p-0 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all duration-200 hover:scale-110"
+                        className="h-8 w-8 p-0 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200 hover:scale-110"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

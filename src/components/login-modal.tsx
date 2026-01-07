@@ -16,7 +16,7 @@ export function LoginModal() {
   const [showChat, setShowChat] = useState(false)
   const [chatMessage, setChatMessage] = useState("")
 
-  const { login, isAuthenticated } = useAuth()
+  const { login, isAuthenticated, isReady } = useAuth()
   const { toast } = useToast()
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export function LoginModal() {
     return () => clearTimeout(timer)
   }, [])
 
-  if (isAuthenticated) {
+  if (!isReady || isAuthenticated) {
     return null
   }
 

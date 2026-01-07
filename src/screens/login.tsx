@@ -40,7 +40,7 @@ export function LoginModal() {
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const googleButtonRef = useRef<HTMLDivElement | null>(null)
 
-  const { login } = useAuth()
+  const { login, isAuthenticated, isReady } = useAuth()
   const { toast } = useToast()
 
   const createSession = useCallback(async (sid: string) => {
@@ -74,9 +74,13 @@ export function LoginModal() {
   }, [handleSeatalkLogin])
 
   useEffect(() => {
+    if (!isReady || isAuthenticated) {
+      setShowModal(false)
+      return
+    }
     const timer = setTimeout(() => setShowModal(true), 1000)
     return () => clearTimeout(timer)
-  }, [])
+  }, [isReady, isAuthenticated])
 
   useEffect(() => {
     if (!showModal || sessionUnlocked) {
@@ -233,7 +237,7 @@ export function LoginModal() {
     }
   }
 
-  if (!showModal || sessionUnlocked) return null
+  if (!isReady || isAuthenticated || !showModal || sessionUnlocked) return null
 
   if (showSuccess) {
     return (

@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from "react"
 
 export interface User {
   ops_id?: string
@@ -16,56 +16,150 @@ interface AuthContextType {
   logout: () => void
   updateUser: (userData: Partial<User>) => void
   isAuthenticated: boolean
+  isReady: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+const USER_KEY = "user"
+const TOKEN_KEY = "token"
+const LAST_ACTIVE_KEY = "auth_last_active"
+const IDLE_TIMEOUT_MS = 60 * 60 * 1000
+
+type AuthState = {
+  user: User | null
+  token: string | null
+  isReady: boolean
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [token, setToken] = useState<string | null>(null)
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    token: null,
+    isReady: false,
+  })
+  const lastActivityRef = useRef(0)
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user")
-    const storedToken = localStorage.getItem("token")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
+    const storedUser = localStorage.getItem(USER_KEY)
+    const storedToken = localStorage.getItem(TOKEN_KEY)
+    const lastActiveRaw = localStorage.getItem(LAST_ACTIVE_KEY)
+    const now = Date.now()
+    const lastActive = lastActiveRaw ? Number(lastActiveRaw) : now
+    let nextUser: User | null = null
+    let nextToken: string | null = null
+
+    if (storedUser && storedToken) {
+      const isLastActiveValid = Number.isFinite(lastActive) ? lastActive : now
+      const shouldRestore = now - isLastActiveValid <= IDLE_TIMEOUT_MS
+
+      if (!lastActiveRaw || !Number.isFinite(lastActive)) {
+        localStorage.setItem(LAST_ACTIVE_KEY, String(now))
+        lastActivityRef.current = now
+      } else {
+        lastActivityRef.current = isLastActiveValid
+      }
+
+      if (shouldRestore) {
+        try {
+          nextUser = JSON.parse(storedUser)
+          nextToken = storedToken
+        } catch {
+          localStorage.removeItem(USER_KEY)
+          localStorage.removeItem(TOKEN_KEY)
+          localStorage.removeItem(LAST_ACTIVE_KEY)
+        }
+      } else {
+        localStorage.removeItem(USER_KEY)
+        localStorage.removeItem(TOKEN_KEY)
+        localStorage.removeItem(LAST_ACTIVE_KEY)
+      }
+    } else if (storedUser || storedToken) {
+      localStorage.removeItem(USER_KEY)
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(LAST_ACTIVE_KEY)
     }
-    if (storedToken) {
-      setToken(storedToken)
-    }
+
+    setAuthState({
+      user: nextUser,
+      token: nextToken,
+      isReady: true,
+    })
   }, [])
 
-  const login = (userData: User, authToken: string) => {
-    setUser(userData)
-    setToken(authToken)
-    localStorage.setItem("user", JSON.stringify(userData))
-    localStorage.setItem("token", authToken)
-  }
+  const login = useCallback((userData: User, authToken: string) => {
+    localStorage.setItem(USER_KEY, JSON.stringify(userData))
+    localStorage.setItem(TOKEN_KEY, authToken)
+    const now = Date.now()
+    localStorage.setItem(LAST_ACTIVE_KEY, String(now))
+    lastActivityRef.current = now
+    setAuthState({
+      user: userData,
+      token: authToken,
+      isReady: true,
+    })
+  }, [])
 
-  const logout = () => {
-    setUser(null)
-    setToken(null)
-    localStorage.removeItem("user")
-    localStorage.removeItem("token")
-  }
+  const logout = useCallback(() => {
+    localStorage.removeItem(USER_KEY)
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(LAST_ACTIVE_KEY)
+    lastActivityRef.current = 0
+    setAuthState((prev) => ({
+      user: null,
+      token: null,
+      isReady: prev.isReady,
+    }))
+  }, [])
 
-  const updateUser = (userData: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...userData }
-      setUser(updatedUser)
-      localStorage.setItem("user", JSON.stringify(updatedUser))
+  const updateUser = useCallback((userData: Partial<User>) => {
+    setAuthState((prev) => {
+      if (!prev.user) return prev
+      const updatedUser = { ...prev.user, ...userData }
+      localStorage.setItem(USER_KEY, JSON.stringify(updatedUser))
+      return { ...prev, user: updatedUser }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!authState.user || !authState.token) return
+
+    const updateActivity = () => {
+      const now = Date.now()
+      if (now - lastActivityRef.current < 30000) return
+      lastActivityRef.current = now
+      localStorage.setItem(LAST_ACTIVE_KEY, String(now))
     }
-  }
+
+    const checkIdle = () => {
+      const lastActiveRaw = localStorage.getItem(LAST_ACTIVE_KEY)
+      const lastActive = lastActiveRaw ? Number(lastActiveRaw) : 0
+      if (!lastActive) return
+      if (Date.now() - lastActive > IDLE_TIMEOUT_MS) {
+        logout()
+      }
+    }
+
+    const events = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"]
+    events.forEach((event) => window.addEventListener(event, updateActivity, { passive: true }))
+    const intervalId = window.setInterval(checkIdle, 60000)
+
+    return () => {
+      events.forEach((event) => window.removeEventListener(event, updateActivity))
+      window.clearInterval(intervalId)
+    }
+  }, [authState.user, authState.token, logout])
 
   return (
     <AuthContext.Provider
       value={{
-        user,
-        token,
+        user: authState.user,
+        token: authState.token,
         login,
         logout,
         updateUser,
-        isAuthenticated: !!user && !!token,
+        isAuthenticated: !!authState.user && !!authState.token,
+        isReady: authState.isReady,
       }}
     >
       {children}

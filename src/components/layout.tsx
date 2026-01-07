@@ -154,7 +154,7 @@ export function Layout({ children }: LayoutProps) {
   }, [user?.name])
 
   return (
-    <div className="app-container flex h-full overflow-hidden bg-background">
+    <div className="app-container flex h-screen overflow-hidden bg-background">
       <div 
         onClick={handleSidebarClick}
         className="cursor-pointer transition-all duration-300 ease-in-out hover:shadow-lg"
