@@ -2,6 +2,16 @@ import { NextResponse } from "next/server"
 import { randomUUID } from "crypto"
 import { query } from "@/lib/db"
 
+const allowedDomains = (process.env.NEXT_PUBLIC_ALLOWED_EMAIL_DOMAINS || "shopeemobile-external.com,spxexpress.com")
+  .split(",")
+  .map((domain) => domain.trim().toLowerCase())
+  .filter(Boolean)
+
+function isAllowedDomain(value: string) {
+  const domain = value.split("@")[1]?.toLowerCase() || ""
+  return domain && allowedDomains.includes(domain)
+}
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const opsId = body?.ops_id
@@ -9,6 +19,10 @@ export async function POST(request: Request) {
 
   if (!opsId) {
     return NextResponse.json({ error: "ops_id is required" }, { status: 400 })
+  }
+
+  if (opsId.includes("@") && !isAllowedDomain(opsId)) {
+    return NextResponse.json({ error: "Email domain is not allowed" }, { status: 403 })
   }
 
   const result = await query(
@@ -24,6 +38,10 @@ export async function POST(request: Request) {
   }
 
   const user = result.rows[0]
+
+  if (user.email && !isAllowedDomain(user.email)) {
+    return NextResponse.json({ error: "Email domain is not allowed" }, { status: 403 })
+  }
 
   if (password && user.password_hash && user.password_hash !== password) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })

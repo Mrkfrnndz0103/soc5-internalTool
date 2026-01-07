@@ -6,7 +6,27 @@ import { authApi } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
 import { QrCode, MessageCircle, X, CheckCircle2 } from "lucide-react"
 
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id?: {
+          initialize: (config: { client_id: string; callback: (response: { credential?: string }) => void }) => void
+          renderButton: (element: HTMLElement, options: Record<string, string>) => void
+        }
+      }
+    }
+  }
+}
+
+const GOOGLE_SCRIPT_ID = "google-gsi-script"
+
 export function LoginModal() {
+  const allowedDomains = (process.env.NEXT_PUBLIC_ALLOWED_EMAIL_DOMAINS || "shopeemobile-external.com,spxexpress.com")
+    .split(",")
+    .map((domain) => domain.trim().toLowerCase())
+    .filter(Boolean)
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
   const [email, setEmail] = useState("")
   const [qrCode, setQrCode] = useState("")
   const [loading, setLoading] = useState(false)
@@ -16,7 +36,9 @@ export function LoginModal() {
   const [helpMessage, setHelpMessage] = useState("")
   const [showModal, setShowModal] = useState(false)
   const [sessionUnlocked, setSessionUnlocked] = useState(false)
+  const [googleReady, setGoogleReady] = useState(false)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
+  const googleButtonRef = useRef<HTMLDivElement | null>(null)
 
   const { login } = useAuth()
   const { toast } = useToast()
@@ -44,6 +66,84 @@ export function LoginModal() {
       }
     }
   }, [showModal, sessionUnlocked])
+
+  useEffect(() => {
+    if (!showModal || sessionUnlocked || !googleClientId) {
+      return
+    }
+
+    const loadGoogleScript = () =>
+      new Promise<void>((resolve, reject) => {
+        if (document.getElementById(GOOGLE_SCRIPT_ID)) {
+          resolve()
+          return
+        }
+        const script = document.createElement("script")
+        script.id = GOOGLE_SCRIPT_ID
+        script.src = "https://accounts.google.com/gsi/client"
+        script.async = true
+        script.defer = true
+        script.onload = () => resolve()
+        script.onerror = () => reject(new Error("Failed to load Google script"))
+        document.head.appendChild(script)
+      })
+
+    let cancelled = false
+
+    loadGoogleScript()
+      .then(() => {
+        if (cancelled) return
+        if (!window.google?.accounts?.id || !googleButtonRef.current) {
+          return
+        }
+
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: async (response) => {
+            if (!response.credential) {
+              toast({
+                variant: "destructive",
+                title: "Google login failed",
+                description: "No credential received from Google.",
+              })
+              return
+            }
+            const result = await authApi.googleLogin(response.credential)
+            if (result.error) {
+              toast({
+                variant: "destructive",
+                title: "Google login failed",
+                description: result.error,
+              })
+              return
+            }
+            if (result.data) {
+              login(result.data.user, result.data.token)
+              setShowSuccess(true)
+            }
+          },
+        })
+
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: "filled_black",
+          size: "large",
+          type: "standard",
+          shape: "pill",
+          width: "280",
+        })
+
+        setGoogleReady(true)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setGoogleReady(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [showModal, sessionUnlocked, googleClientId, login, toast])
 
   useEffect(() => {
     if (!showSuccess) return
@@ -84,11 +184,12 @@ export function LoginModal() {
   const handleBackroomLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!email.endsWith("@shopeemobile-external.com")) {
+    const domain = email.split("@")[1]?.toLowerCase() || ""
+    if (!domain || !allowedDomains.includes(domain)) {
       toast({
         variant: "destructive",
         title: "Invalid Email",
-        description: "Only @shopeemobile-external.com emails are allowed.",
+        description: `Only ${allowedDomains.map((d) => `@${d}`).join(" or ")} emails are allowed.`,
       })
       return
     }
@@ -228,6 +329,20 @@ export function LoginModal() {
               </div>
 
               <div className="flex-1 animate-in slide-in-from-right-4 duration-700 delay-400">
+                <div className="mb-6 flex flex-col items-center">
+                  {googleClientId ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <div ref={googleButtonRef} />
+                      {googleReady ? (
+                        <p className="text-xs text-gray-400">FTE users: Sign in with Google</p>
+                      ) : (
+                        <p className="text-xs text-gray-500">Loading Google Sign-In...</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-red-400 text-center">Google Sign-In not configured.</p>
+                  )}
+                </div>
                 <form onSubmit={handleBackroomLogin} className="space-y-4">
                   <div>
                     <label className="block text-gray-300 text-xs font-medium mb-2">
@@ -235,7 +350,7 @@ export function LoginModal() {
                     </label>
                     <input
                       type="email"
-                      placeholder="username@shopeemobile-external.com"
+                      placeholder="username@shopeemobile-external.com or @spxexpress.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full px-3 py-2.5 text-sm bg-[#1a1d29] border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#5a8a8f] transition-colors"
