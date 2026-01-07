@@ -5,12 +5,13 @@ export async function GET(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
+  const opsId = params.id
   const result = await query(
-    `SELECT id, ops_id, name, role, email, is_first_time, must_change_password, department
+    `SELECT ops_id, name, role, email, department
      FROM users
-     WHERE id = $1
+     WHERE ops_id = $1
      LIMIT 1`,
-    [params.id]
+    [opsId]
   )
 
   if (result.rows.length === 0) {

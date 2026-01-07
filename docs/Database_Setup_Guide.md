@@ -80,15 +80,13 @@ Notes:
 ## Schema Plan (Detailed)
 
 ### users
-- id (uuid, primary key)
-- ops_id (text, unique)
+- ops_id (text, primary key)
 - name (text)
 - role (text)
 - department (text)
 - is_fte (boolean)
 - email (text)
-- password_hash (text)
-- created_at (timestamp)
+Note: headers for CSV import should be `ops_id,name,role,department,is_fte,email`.
 
 ### dispatch_reports
 - dispatch_id (uuid, primary key)
@@ -149,12 +147,19 @@ db/
     002_dispatch_reports.sql
     003_kpi_tables.sql
     004_dispatch_workflow.sql
+    005_remove_login_flags.sql
+    006_remove_password_hash.sql
+    007_users_ops_id_pk.sql
 ```
 
 How to apply (manual):
 1) Open pgAdmin Query Tool.
 2) Run each file in order.
 3) Record applied migration in a simple `schema_migrations` table.
+
+How to apply (scripted):
+1) Ensure `DATABASE_URL` is set in `.env`.
+2) Run: `npm run db:migrate`
 
 Suggested updates for `004_dispatch_workflow.sql`:
 - add `department` to `users`

@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: { ops_id: string } }
 ) {
   const result = await query(
-    `SELECT id, ops_id, name, role, email, is_first_time, must_change_password, department
+    `SELECT ops_id, name, role, email, department
      FROM users
      WHERE ops_id = $1
      LIMIT 1`,

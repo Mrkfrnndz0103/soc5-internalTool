@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     }
 
     const existing = await query(
-      `SELECT id, ops_id, name, role, email, is_first_time, must_change_password, department
+      `SELECT ops_id, name, role, email, department
        FROM users
        WHERE email = $1
        LIMIT 1`,
@@ -59,9 +59,9 @@ export async function POST(request: Request) {
     const opsId = email
 
     const created = await query(
-      `INSERT INTO users (ops_id, name, role, is_fte, email, created_at)
-       VALUES ($1, $2, 'FTE', true, $3, NOW())
-       RETURNING id, ops_id, name, role, email, is_first_time, must_change_password, department`,
+      `INSERT INTO users (ops_id, name, role, is_fte, email)
+       VALUES ($1, $2, 'FTE', true, $3)
+       RETURNING ops_id, name, role, email, department`,
       [opsId, name, email]
     )
 

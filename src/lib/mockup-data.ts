@@ -7,8 +7,6 @@ export interface MockUser {
   role: "FTE" | "Backroom" | "Data Team" | "Admin"
   email?: string
   password: string // In production, never store passwords in frontend!
-  is_first_time: boolean
-  must_change_password: boolean
 }
 
 export interface MockCluster {
@@ -39,64 +37,48 @@ export const mockUsers: MockUser[] = [
     name: "Juan Dela Cruz",
     role: "Backroom",
     password: "SOC5-Outbound",
-    is_first_time: false,
-    must_change_password: false,
   },
   {
     ops_id: "OPS002",
     name: "Maria Santos",
     role: "Backroom",
     password: "SOC5-Outbound",
-    is_first_time: true,
-    must_change_password: true,
   },
   {
     ops_id: "OPS003",
     name: "Pedro Gonzales",
     role: "Backroom",
     password: "MyPassword123!",
-    is_first_time: false,
-    must_change_password: false,
   },
   {
     ops_id: "OPS004",
     name: "Ana Reyes",
     role: "Backroom",
     password: "SOC5-Outbound",
-    is_first_time: false,
-    must_change_password: false,
   },
   {
     ops_id: "OPS005",
     name: "Carlos Rivera",
     role: "Backroom",
     password: "MyPassword456!",
-    is_first_time: false,
-    must_change_password: false,
   },
   {
     ops_id: "DATA001",
     name: "Lisa Chen",
     role: "Data Team",
     password: "DataTeam2024!",
-    is_first_time: false,
-    must_change_password: false,
   },
   {
     ops_id: "DATA002",
     name: "Michael Tan",
     role: "Data Team",
     password: "DataTeam2024!",
-    is_first_time: false,
-    must_change_password: false,
   },
   {
     ops_id: "ADMIN001",
     name: "Sarah Johnson",
     role: "Admin",
     password: "Admin2024!",
-    is_first_time: false,
-    must_change_password: false,
   },
   {
     ops_id: "FTE001",
@@ -104,8 +86,6 @@ export const mockUsers: MockUser[] = [
     role: "FTE",
     email: "robert.brown@company.com",
     password: "", // FTE uses Google OAuth
-    is_first_time: false,
-    must_change_password: false,
   },
   {
     ops_id: "FTE002",
@@ -113,8 +93,6 @@ export const mockUsers: MockUser[] = [
     role: "FTE",
     email: "jennifer.lee@company.com",
     password: "",
-    is_first_time: false,
-    must_change_password: false,
   },
 ]
 

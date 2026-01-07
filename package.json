@@ -12,7 +12,8 @@
     "test:watch": "jest --watch",
     "docs:update": "node scripts/update-docs.js",
     "docs:watch": "node scripts/watch-docs.js",
-    "postinstall": "node scripts/setup-hooks.js"
+    "postinstall": "node scripts/setup-hooks.js",
+    "db:migrate": "node scripts/apply-migrations.js"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.1.2",

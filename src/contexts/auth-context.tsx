@@ -7,8 +7,6 @@ export interface User {
   name: string
   role: "FTE" | "Backroom" | "Data Team" | "Admin"
   email?: string
-  is_first_time?: boolean
-  must_change_password?: boolean
 }
 
 interface AuthContextType {

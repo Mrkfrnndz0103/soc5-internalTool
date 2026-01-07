@@ -15,7 +15,6 @@ function isAllowedDomain(value: string) {
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const opsId = body?.ops_id
-  const password = body?.password
 
   if (!opsId) {
     return NextResponse.json({ error: "ops_id is required" }, { status: 400 })
@@ -26,7 +25,7 @@ export async function POST(request: Request) {
   }
 
   const result = await query(
-    `SELECT id, ops_id, name, role, email, is_first_time, must_change_password, password_hash
+    `SELECT ops_id, name, role, email
      FROM users
      WHERE ops_id = $1 OR email = $1
      LIMIT 1`,
@@ -43,10 +42,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Email domain is not allowed" }, { status: 403 })
   }
 
-  if (password && user.password_hash && user.password_hash !== password) {
-    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
-  }
-
   const token = randomUUID()
 
   return NextResponse.json({
@@ -55,8 +50,6 @@ export async function POST(request: Request) {
       name: user.name,
       role: user.role,
       email: user.email,
-      is_first_time: user.is_first_time,
-      must_change_password: user.must_change_password,
     },
     token,
   })

@@ -32,7 +32,6 @@ export const mockAuthApi = {
         email: user.email,
       },
       token,
-      must_change_password: user.must_change_password,
     })
   },
 
@@ -99,8 +98,6 @@ export const mockLookupApi = {
       ops_id: user.ops_id,
       name: user.name,
       role: user.role,
-      is_first_time: user.is_first_time,
-      must_change_password: user.must_change_password,
     })
   },
 

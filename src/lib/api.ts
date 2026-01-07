@@ -1,3 +1,16 @@
+export type AuthUser = {
+  ops_id?: string
+  name: string
+  role: "FTE" | "Backroom" | "Data Team" | "Admin"
+  email?: string
+  department?: string
+}
+
+export type LoginResponse = {
+  user: AuthUser
+  token: string
+}
+
 type ApiResult<T> = { data?: T; error?: string }
 
 const jsonHeaders = { "Content-Type": "application/json" }
@@ -34,45 +47,45 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
 // Authentication APIs
 export const authApi = {
   async login(ops_id: string, password: string) {
-    return request("/api/auth/login", {
+    return request<LoginResponse>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ ops_id, password }),
     })
   },
 
   async createSeatalkSession(session_id: string) {
-    return request("/api/auth/seatalk/session", {
+    return request<{ success: boolean }>("/api/auth/seatalk/session", {
       method: "POST",
       body: JSON.stringify({ session_id }),
     })
   },
 
   async checkSeatalkAuth(session_id: string) {
-    return request(`/api/auth/seatalk/check${buildQuery({ session_id })}`, {
+    return request<{ email: string; authenticated: boolean } | null>(`/api/auth/seatalk/check${buildQuery({ session_id })}`, {
       method: "GET",
     })
   },
 
   async googleLogin(id_token: string) {
-    return request("/api/auth/google", {
+    return request<LoginResponse>("/api/auth/google", {
       method: "POST",
       body: JSON.stringify({ id_token }),
     })
   },
 
   async changePassword(ops_id: string, old_password: string, new_password: string) {
-    return request("/api/auth/change-password", {
+    return request<{ message: string }>("/api/auth/change-password", {
       method: "POST",
       body: JSON.stringify({ ops_id, old_password, new_password }),
     })
   },
 
   async getUserById(userId: string) {
-    return request(`/api/users/${encodeURIComponent(userId)}`, { method: "GET" })
+    return request<AuthUser>(`/api/users/${encodeURIComponent(userId)}`, { method: "GET" })
   },
 
   async getUser(ops_id: string) {
-    return request(`/api/users/ops/${encodeURIComponent(ops_id)}`, { method: "GET" })
+    return request<AuthUser>(`/api/users/ops/${encodeURIComponent(ops_id)}`, { method: "GET" })
   },
 }
 
