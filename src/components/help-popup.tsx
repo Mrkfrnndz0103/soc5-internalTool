@@ -213,7 +213,7 @@ export function HelpPopup({ isOpen, onClose, isMinimized, onToggleMinimize }: He
               <div className="p-3 space-y-2">
                 {searchQuery && (
                   <p className="text-xs text-muted-foreground mb-2">
-                    {filteredFAQ.length} results for "{searchQuery}"
+                    {filteredFAQ.length} results for &quot;{searchQuery}&quot;
                   </p>
                 )}
                 {filteredFAQ.map(item => (
