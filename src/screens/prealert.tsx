@@ -433,41 +433,36 @@ export function PrealertPage() {
   const handleConfirm = (report: Report) => {
     if (!user) return
     const now = new Date().toISOString()
-    let confirmed: Report | null = null
-    updateReport(report.id, (current) => {
-      confirmed = {
-        ...current,
-        status: "Confirmed",
-        confirmedBy: user.name,
-        confirmedAt: now,
-        dataTeam: current.dataTeam || user.name,
-        dataTeamOpsId: current.dataTeamOpsId || user.ops_id,
-        statusUpdatedAt: now,
-      }
-      return confirmed
-    })
-    if (confirmed) {
-      const headers = ["dispatch_id", "lh_trip", "hub", "batch", "plate", "status", "confirmed_by", "confirmed_at"]
-      const row = [
-        confirmed.id,
-        confirmed.lh_trip || "",
-        confirmed.hub,
-        confirmed.batch,
-        confirmed.plate || "",
-        confirmed.status,
-        confirmed.confirmedBy || "",
-        confirmed.confirmedAt || "",
-      ]
-      const csv = `${headers.join(",")}\n${row.map(escapeCsv).join(",")}`
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = `dispatch-${confirmed.id}.csv`
-      link.click()
-      window.URL.revokeObjectURL(url)
-      toast({ title: "Confirmed", description: "CSV downloaded. Seatalk and email dispatch queued." })
+    const confirmed: Report = {
+      ...report,
+      status: "Confirmed",
+      confirmedBy: user.name,
+      confirmedAt: now,
+      dataTeam: report.dataTeam || user.name,
+      dataTeamOpsId: report.dataTeamOpsId || user.ops_id,
+      statusUpdatedAt: now,
     }
+    updateReport(report.id, () => confirmed)
+    const headers = ["dispatch_id", "lh_trip", "hub", "batch", "plate", "status", "confirmed_by", "confirmed_at"]
+    const row = [
+      confirmed.id,
+      confirmed.lh_trip || "",
+      confirmed.hub,
+      confirmed.batch,
+      confirmed.plate || "",
+      confirmed.status,
+      confirmed.confirmedBy || "",
+      confirmed.confirmedAt || "",
+    ]
+    const csv = `${headers.join(",")}\n${row.map(escapeCsv).join(",")}`
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `dispatch-${confirmed.id}.csv`
+    link.click()
+    window.URL.revokeObjectURL(url)
+    toast({ title: "Confirmed", description: "CSV downloaded. Seatalk and email dispatch queued." })
   }
 
   const handleResubmit = (report: Report) => {

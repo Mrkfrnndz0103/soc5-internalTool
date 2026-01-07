@@ -38,7 +38,7 @@ export function DispatchMonitoringPage() {
 
   const loadDispatches = async () => {
     setLoading(true)
-    const response = await dispatchApi.getDispatches({ limit: 20 })
+    const response = await dispatchApi.getDispatches<DispatchEntry>({ limit: 20 })
     setLoading(false)
 
     if (response.data) {

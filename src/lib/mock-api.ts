@@ -282,10 +282,12 @@ export function useMockApi(): boolean {
   return process.env.NEXT_PUBLIC_USE_MOCK_API === "true"
 }
 
-export default {
+const mockApi = {
   auth: mockAuthApi,
   lookup: mockLookupApi,
   dispatch: mockDispatchApi,
   hub: mockHubApi,
   kpi: mockKpiApi,
 }
+
+export default mockApi

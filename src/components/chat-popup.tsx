@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { MessageCircle, X, Send, Minimize2, Smile, Paperclip, Image, Mic, Check, CheckCheck, Reply, MoreVertical, Trash2, Copy, ChevronDown } from "lucide-react"
+import { MessageCircle, X, Send, Minimize2, Smile, Paperclip, Image as ImageIcon, Mic, Check, CheckCheck, Reply, MoreVertical, Trash2, Copy, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -258,6 +258,7 @@ export function ChatPopup() {
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="h-11 w-11 rounded-full overflow-hidden border-2 border-white/30 shadow-lg">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
                   src={supportAvatar} 
                   alt="Support" 
@@ -343,6 +344,7 @@ export function ChatPopup() {
                 {msg.sender === "support" && (
                   <div className="flex-shrink-0 mr-2">
                     <div className="h-8 w-8 rounded-full overflow-hidden border-2 border-white shadow-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img 
                         src={msg.avatar || supportAvatar} 
                         alt={msg.senderName || "Support"} 
@@ -510,6 +512,7 @@ export function ChatPopup() {
               <div className="flex justify-start animate-slide-in">
                 <div className="flex items-end gap-2">
                   <div className="h-8 w-8 rounded-full overflow-hidden border-2 border-white shadow-sm flex-shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                       src={supportAvatar} 
                       alt="Support typing" 
@@ -627,7 +630,7 @@ export function ChatPopup() {
                   className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full hover:bg-slate-100/80 transition-all duration-200 group/btn"
                   title="Add image"
                 >
-                  <Image className="h-4 w-4 text-slate-600 group-hover/btn:text-green-500 transition-colors" />
+                  <ImageIcon className="h-4 w-4 text-slate-600 group-hover/btn:text-green-500 transition-colors" />
                 </Button>
               </div>
               {inputValue.trim() ? (

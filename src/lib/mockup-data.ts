@@ -327,7 +327,7 @@ export function generateMockToken(user: MockUser): string {
 }
 
 // Export all for easy import
-export default {
+const mockData = {
   users: mockUsers,
   clusters: mockClusters,
   hubs: mockHubs,
@@ -339,3 +339,5 @@ export default {
   searchProcessors,
   generateMockToken,
 }
+
+export default mockData

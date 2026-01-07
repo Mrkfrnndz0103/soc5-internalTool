@@ -12,6 +12,12 @@ export type LoginResponse = {
 }
 
 type ApiResult<T> = { data?: T; error?: string }
+export type DispatchListResponse<T> = {
+  total: number
+  limit: number
+  offset: number
+  rows: T[]
+}
 
 const jsonHeaders = { "Content-Type": "application/json" }
 
@@ -117,7 +123,7 @@ export const dispatchApi = {
     })
   },
 
-  async getDispatches(params: {
+  async getDispatches<T = unknown>(params: {
     limit?: number
     offset?: number
     status?: string
@@ -125,7 +131,7 @@ export const dispatchApi = {
     startDate?: string
     endDate?: string
   }) {
-    return request(`/api/dispatch${buildQuery(params as Record<string, string | number | boolean | undefined>)}`, {
+    return request<DispatchListResponse<T>>(`/api/dispatch${buildQuery(params as Record<string, string | number | boolean | undefined>)}`, {
       method: "GET",
     })
   },

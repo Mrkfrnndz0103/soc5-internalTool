@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { authApi } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
@@ -43,6 +43,36 @@ export function LoginModal() {
   const { login } = useAuth()
   const { toast } = useToast()
 
+  const createSession = useCallback(async (sid: string) => {
+    await authApi.createSeatalkSession(sid)
+  }, [])
+
+  const handleSeatalkLogin = useCallback(async (email: string) => {
+    const response = await authApi.login(email, "")
+    if (response.error) {
+      toast({
+        variant: "destructive",
+        title: "Login failed",
+        description: response.error,
+      })
+      return
+    }
+    if (response.data) {
+      login(response.data.user, response.data.token)
+      setShowSuccess(true)
+    }
+  }, [login, toast])
+
+  const startPolling = useCallback((sid: string) => {
+    pollingRef.current = setInterval(async () => {
+      const response = await authApi.checkSeatalkAuth(sid)
+      if (response.data?.authenticated && response.data?.email) {
+        if (pollingRef.current) clearInterval(pollingRef.current)
+        await handleSeatalkLogin(response.data.email)
+      }
+    }, 2000)
+  }, [handleSeatalkLogin])
+
   useEffect(() => {
     const timer = setTimeout(() => setShowModal(true), 1000)
     return () => clearTimeout(timer)
@@ -65,7 +95,7 @@ export function LoginModal() {
         pollingRef.current = null
       }
     }
-  }, [showModal, sessionUnlocked])
+  }, [showModal, sessionUnlocked, createSession, startPolling])
 
   useEffect(() => {
     if (!showModal || sessionUnlocked || !googleClientId) {
@@ -150,36 +180,6 @@ export function LoginModal() {
     const timer = setTimeout(() => setSessionUnlocked(true), 1200)
     return () => clearTimeout(timer)
   }, [showSuccess])
-
-  const createSession = async (sid: string) => {
-    await authApi.createSeatalkSession(sid)
-  }
-
-  const startPolling = (sid: string) => {
-    pollingRef.current = setInterval(async () => {
-      const response = await authApi.checkSeatalkAuth(sid)
-      if (response.data?.authenticated && response.data?.email) {
-        if (pollingRef.current) clearInterval(pollingRef.current)
-        await handleSeatalkLogin(response.data.email)
-      }
-    }, 2000)
-  }
-
-  const handleSeatalkLogin = async (email: string) => {
-    const response = await authApi.login(email, "")
-    if (response.error) {
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: response.error,
-      })
-      return
-    }
-    if (response.data) {
-      login(response.data.user, response.data.token)
-      setShowSuccess(true)
-    }
-  }
 
   const handleBackroomLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -292,7 +292,10 @@ export function LoginModal() {
                     <div className="absolute inset-2 bg-gradient-to-br from-[#5a8a8f]/10 to-transparent rounded-xl"></div>
                     
                     {qrCode ? (
-                      <img src={qrCode} alt="QR Code" className="w-40 h-40 relative z-10 rounded-lg animate-in zoom-in-50 duration-500 delay-500" />
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={qrCode} alt="QR Code" className="w-40 h-40 relative z-10 rounded-lg animate-in zoom-in-50 duration-500 delay-500" />
+                      </>
                     ) : (
                       <div className="w-40 h-40 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg">
                         <QrCode className="w-24 h-24 text-[#5a8a8f] animate-pulse" />
