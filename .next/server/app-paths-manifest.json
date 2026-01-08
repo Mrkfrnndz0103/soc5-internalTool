@@ -1,6 +1,6 @@
 {
-  "/(app)/dashboard/page": "app/(app)/dashboard/page.js",
+  "/(app)/data-team/socpacked-update/page": "app/(app)/data-team/socpacked-update/page.js",
   "/(app)/outbound/prealert/page": "app/(app)/outbound/prealert/page.js",
   "/(app)/outbound/dispatch-report/page": "app/(app)/outbound/dispatch-report/page.js",
-  "/(app)/data-team/socpacked-update/page": "app/(app)/data-team/socpacked-update/page.js"
+  "/(app)/dashboard/page": "app/(app)/dashboard/page.js"
 }

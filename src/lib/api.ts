@@ -19,6 +19,24 @@ export type DispatchListResponse<T> = {
   rows: T[]
 }
 
+export type LhTripLookupRow = {
+  lh_trip_number: string
+  cluster_name: string | null
+  station_name: string | null
+  region: string | null
+  count_of_to: string | null
+  total_oid_loaded: number | null
+  actual_docked_time: string | null
+  dock_number: string | null
+  actual_depart_time: string | null
+  processor_name: string | null
+  plate_number: string | null
+  fleet_size: string | null
+  assigned_ops_id: string | null
+  source_updated_at: string | null
+  updated_at: string | null
+}
+
 const jsonHeaders = { "Content-Type": "application/json" }
 
 async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
@@ -111,6 +129,10 @@ export const lookupApi = {
 
   async getProcessors(query?: string) {
     return request(`/api/lookup/processors${buildQuery({ query })}`, { method: "GET" })
+  },
+
+  async getLhTrip(lhTrip: string) {
+    return request<{ row: LhTripLookupRow | null }>(`/api/lookup/lh-trip${buildQuery({ lhTrip })}`, { method: "GET" })
   },
 }
 

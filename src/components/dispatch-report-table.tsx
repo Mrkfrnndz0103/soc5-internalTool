@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/components/ui/use-toast"
-import { lookupApi } from "@/lib/api"
+import { lookupApi, type LhTripLookupRow } from "@/lib/api"
 
 interface DispatchRow {
   id: string
@@ -30,7 +30,7 @@ interface DispatchRow {
   clusterName: string
   station: string
   region: string
-  countTO: number
+  countTO: string
   totalOIDLoaded: number
   actualDockedTime: string
   dockNumber: string
@@ -110,6 +110,14 @@ function saveStoredReports(reports: StoredReport[]) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(reports))
 }
 
+function toDateTimeLocal(value?: string | null) {
+  if (!value) return ""
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ""
+  const offset = parsed.getTimezoneOffset() * 60000
+  return new Date(parsed.getTime() - offset).toISOString().slice(0, 16)
+}
+
 const createRowId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
 const createEmptyRow = (overrides: Partial<DispatchRow> = {}): DispatchRow => ({
@@ -118,7 +126,7 @@ const createEmptyRow = (overrides: Partial<DispatchRow> = {}): DispatchRow => ({
   clusterName: "",
   station: "",
   region: "",
-  countTO: 0,
+  countTO: "",
   totalOIDLoaded: 0,
   actualDockedTime: "",
   dockNumber: "",
@@ -201,6 +209,8 @@ export function DispatchReportTable() {
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
   const clusterRequestId = useRef(0)
   const processorRequestId = useRef(0)
+  const lhTripTimers = useRef<Record<string, ReturnType<typeof setTimeout> | undefined>>({})
+  const lhTripRequestIds = useRef<Record<string, number>>({})
 
   // Pause animations when component is not visible to save resources
   useEffect(() => {
@@ -212,6 +222,14 @@ export function DispatchReportTable() {
       observer.observe(tableRef.current)
     }
     return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      Object.values(lhTripTimers.current).forEach((timer) => {
+        if (timer) clearTimeout(timer)
+      })
+    }
   }, [])
 
   // Auto-fill batch numbers when rows change - using functional update to avoid dependency issues
@@ -347,6 +365,53 @@ export function DispatchReportTable() {
     }
   }
 
+  const applyLhTripData = (rowId: string, data: LhTripLookupRow) => {
+    const dockedValue = toDateTimeLocal(data.actual_docked_time)
+    const departValue = toDateTimeLocal(data.actual_depart_time)
+    setRows(prevRows =>
+      prevRows.map(row =>
+        row.id === rowId
+          ? {
+              ...row,
+              clusterName: data.cluster_name ?? row.clusterName,
+              station: data.station_name ?? row.station,
+              region: data.region ?? row.region,
+              countTO: data.count_of_to ?? row.countTO,
+              totalOIDLoaded: data.total_oid_loaded ?? row.totalOIDLoaded,
+              actualDockedTime: dockedValue || row.actualDockedTime,
+              dockNumber: data.dock_number ?? row.dockNumber,
+              actualDepartTime: departValue || row.actualDepartTime,
+              processorName: data.processor_name ?? row.processorName,
+              plateNumber: data.plate_number ?? row.plateNumber,
+              fleetSize: data.fleet_size ?? row.fleetSize,
+              assignedPIC: data.assigned_ops_id ?? row.assignedPIC,
+            }
+          : row
+      )
+    )
+  }
+
+  const handleLhTripInput = (rowId: string, value: string) => {
+    const normalized = value.toUpperCase()
+    handleCellEdit(rowId, "lHTripNumber", normalized)
+
+    const existingTimer = lhTripTimers.current[rowId]
+    if (existingTimer) clearTimeout(existingTimer)
+
+    if (normalized.length < 3) return
+
+    lhTripTimers.current[rowId] = setTimeout(async () => {
+      const requestId = (lhTripRequestIds.current[rowId] || 0) + 1
+      lhTripRequestIds.current[rowId] = requestId
+
+      const { data, error } = await lookupApi.getLhTrip(normalized)
+      if (lhTripRequestIds.current[rowId] !== requestId) return
+      if (error || !data?.row) return
+
+      applyLhTripData(rowId, data.row)
+    }, 450)
+  }
+
   // Add new row
   const addRow = () => {
     setRows(prevRows => [...prevRows, createEmptyRow()])
@@ -354,11 +419,20 @@ export function DispatchReportTable() {
 
   // Delete row
   const deleteRow = (rowId: string) => {
+    const existingTimer = lhTripTimers.current[rowId]
+    if (existingTimer) clearTimeout(existingTimer)
+    delete lhTripTimers.current[rowId]
+    delete lhTripRequestIds.current[rowId]
     setRows(rows.filter(row => row.id !== rowId))
   }
 
   // Clear all rows
   const clearAll = () => {
+    Object.values(lhTripTimers.current).forEach((timer) => {
+      if (timer) clearTimeout(timer)
+    })
+    lhTripTimers.current = {}
+    lhTripRequestIds.current = {}
     setRows([createEmptyRow({ id: "1", batchNumber: 1 })])
     setTruckLoadPercentage(0)
   }
@@ -1284,10 +1358,8 @@ export function DispatchReportTable() {
                     </td>
                     <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
                       <Input
-                        type="number"
-                        min="0"
                         value={row.countTO}
-                        onChange={(e) => handleCellEdit(row.id, 'countTO', parseInt(e.target.value) || 0)}
+                        onChange={(e) => handleCellEdit(row.id, 'countTO', e.target.value)}
                         className="w-20 h-8 text-xs border-gray-200 rounded-lg bg-slate-50/80 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 focus:bg-white"
                       />
                     </td>
@@ -1362,7 +1434,7 @@ export function DispatchReportTable() {
                     <td className="px-2 py-1.5 whitespace-nowrap border-l border-slate-200/70 first:border-l-0">
                       <Input
                         value={row.lHTripNumber}
-                        onChange={(e) => handleCellEdit(row.id, 'lHTripNumber', e.target.value.toUpperCase())}
+                        onChange={(e) => handleLhTripInput(row.id, e.target.value)}
                         placeholder="LT..."
                         className="w-24 h-8 text-xs border-gray-200 rounded-lg bg-slate-50/80 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 uppercase focus:bg-white"
                       />

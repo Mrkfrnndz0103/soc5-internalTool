@@ -3,7 +3,7 @@ Table header (final order) & per-column behavior (Submit Report)
     2. Cluster Name — autocomplete after 3 chars, values from outbound_map.
     3. Station (Hub name) — auto-filled; auto-split on multi-hub cluster. (if cluster_name maps to 2 hub names, auto-split to 2 rows and fill station_name with each hub name.)
     4. Region — select list (InterSOC, RC, MM/GMA, GMA SOL, GMA NOL, SOL, SOL IIS, VisMin).
-    5. Count of TO — integer >= 0.
+    5. Count of TO — TO number string (from Google Sheets).
     6. Total OID Loaded — integer >= 0.
     7. Actual Docked Time — datetime picker.
     8. Dock # — auto-filled from outbound_map; editable; requires per-row dock_confirmed before submit.
@@ -25,7 +25,7 @@ Field affordances: steppers for ints, inline validation, tooltips, keyboard navi
 13. Validation rules (client + server)
 Client:
   - Required: cluster_name, station_name, region, count_of_to, total_oid_loaded, dock_number (confirmed), actual_docked_time, assigned_ops_id.
-  - Numeric ints >= 0 for counts.
+  - Numeric ints >= 0 for total_oid_loaded only.
   - actual_depart_time >= actual_docked_time.
   - LH Trip/Plate uppercase enforced client-side.
   - Max rows per submission: 50.
@@ -46,4 +46,4 @@ Server (definitive):
   - Retention default: 7 days.
   - Export draft to JSON if needed.
 
-Last Updated: 2026-01-07
+Last Updated: 2026-01-08
