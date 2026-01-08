@@ -131,7 +131,8 @@ function parseRow(rawRow: RawRow): SheetRow | null {
   const operatorValue = canonical.operator || ""
   let operatorOpsId: string | null = null
   let operatorName: string | null = null
-  let operatorRaw = operatorValue || null
+  
+  const operatorRaw = operatorValue || null
 
   if (operatorValue) {
     const match = operatorValue.match(/\[([^\]]+)\]\s*(.+)/)
