@@ -32,7 +32,8 @@ export async function query<T = any>(text: string, params?: any[]) {
 
   try {
     const result = await pool.query<T>(text, params)
-    const rows = typeof result.rowCount === "number" ? result.rowCount : result.rows?.length ?? 0
+    const rowCount = (result as { rowCount?: number | null }).rowCount
+    const rows = typeof rowCount === "number" ? rowCount : result.rows?.length ?? 0
     const ms = Date.now() - start
     console.log(JSON.stringify({ type: "db.query", route, ms, rows }))
     return result
