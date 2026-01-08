@@ -3,6 +3,10 @@ import { query } from "@/lib/db"
 import { withRequestLogging } from "@/lib/request-context"
 
 export const GET = withRequestLogging("/api/auth/seatalk/check", async (request: Request) => {
+  if (process.env.NEXT_PUBLIC_SEATALK_ENABLED === "false") {
+    return NextResponse.json({ error: "Seatalk login is disabled" }, { status: 410 })
+  }
+
   const { searchParams } = new URL(request.url)
   const sessionId = searchParams.get("session_id")
 
