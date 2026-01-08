@@ -168,6 +168,10 @@ How to apply (scripted):
 1) Ensure `DATABASE_URL` is set in `.env`.
 2) Run: `npm run db:migrate`
 
+Non-transactional migrations:
+- For operations that cannot run inside a transaction (e.g., `CREATE INDEX CONCURRENTLY`), add the filename to the allowlist in `scripts/apply-migrations.js`.
+- The migration runner will skip `BEGIN/COMMIT` for those files.
+
 Suggested updates for `004_dispatch_workflow.sql`:
 - add `department` to `users`
 - add ownership/ack/confirm fields + `status_updated_at` + `edit_count` to `dispatch_reports`

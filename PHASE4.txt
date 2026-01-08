@@ -1,0 +1,8 @@
+Phase 4 — Hardening (prevents future bugs)
+
+1. Request schema validation
+    - Add Zod (or similar) on every POST/PATCH.
+2. Rate limiting (cheap)
+    - Basic per-session rate limit in DB (no Redis). Store counters with TTL if needed.
+3. Session refresh load
+    - getSession() updates last_seen_at periodically. OK, but ensure it doesn’t run on every single asset call (keep it API-only).

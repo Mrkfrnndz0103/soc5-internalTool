@@ -36,5 +36,7 @@ export const GET = withRequestLogging("/api/kpi/mdt", async (request: Request) =
     params
   )
 
-  return NextResponse.json(result.rows)
+  return NextResponse.json(result.rows, {
+    headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
+  })
 })

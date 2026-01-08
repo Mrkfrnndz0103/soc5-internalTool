@@ -3,6 +3,8 @@ import { OAuth2Client } from "google-auth-library"
 import { query } from "@/lib/db"
 import { createSession, setSessionCookie } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
+import { parseRequestJson } from "@/lib/validation"
+import { z } from "zod"
 
 const allowedDomains = (process.env.NEXT_PUBLIC_ALLOWED_EMAIL_DOMAINS || "shopeemobile-external.com,spxexpress.com")
   .split(",")
@@ -14,13 +16,16 @@ function isAllowedDomain(email: string) {
   return domain && allowedDomains.includes(domain)
 }
 
-export const POST = withRequestLogging("/api/auth/google", async (request: Request) => {
-  const body = await request.json().catch(() => ({}))
-  const idToken = body?.id_token
+const googleAuthSchema = z
+  .object({
+    id_token: z.string({ required_error: "id_token is required" }).trim().min(1, "id_token is required"),
+  })
+  .strict()
 
-  if (!idToken) {
-    return NextResponse.json({ error: "id_token is required" }, { status: 400 })
-  }
+export const POST = withRequestLogging("/api/auth/google", async (request: Request) => {
+  const parsed = await parseRequestJson(request, googleAuthSchema)
+  if (parsed.errorResponse) return parsed.errorResponse
+  const idToken = parsed.data.id_token
 
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
   if (!clientId) {
@@ -50,28 +55,13 @@ export const POST = withRequestLogging("/api/auth/google", async (request: Reque
       [email]
     )
 
-    if (existing.rows.length > 0) {
-      const { sessionId } = await createSession(existing.rows[0].ops_id)
-      const response = NextResponse.json({
-        user: existing.rows[0],
-      })
-      setSessionCookie(response, sessionId)
-      return response
+    if (existing.rows.length === 0) {
+      return NextResponse.json({ error: "User not provisioned" }, { status: 403 })
     }
 
-    const name = payload?.name || email.split("@")[0]
-    const opsId = email
-
-    const created = await query(
-      `INSERT INTO users (ops_id, name, role, is_fte, email)
-       VALUES ($1, $2, 'FTE', true, $3)
-       RETURNING ops_id, name, role, email, department`,
-      [opsId, name, email]
-    )
-
-    const { sessionId } = await createSession(created.rows[0].ops_id)
+    const { sessionId } = await createSession(existing.rows[0].ops_id)
     const response = NextResponse.json({
-      user: created.rows[0],
+      user: existing.rows[0],
     })
     setSessionCookie(response, sessionId)
     return response

@@ -61,13 +61,32 @@ async function applyMigrations() {
 
     let appliedCount = 0
 
+    const nonTransactionalMigrations = new Set([
+      "010_add_read_performance_indexes.sql",
+    ])
+
     for (const file of files) {
       if (applied.has(file)) continue
       const filePath = path.join(migrationsDir, file)
       const sql = fs.readFileSync(filePath, "utf8").trim()
       if (!sql) continue
 
-      console.log(`Applying ${file}...`)
+      const nonTransactional = nonTransactionalMigrations.has(file)
+      console.log(`Applying ${file}${nonTransactional ? " (non-transactional)" : ""}...`)
+
+      if (nonTransactional) {
+        const statements = sql
+          .split(";")
+          .map((statement) => statement.trim())
+          .filter(Boolean)
+        for (const statement of statements) {
+          await client.query(statement)
+        }
+        await client.query("INSERT INTO schema_migrations (filename) VALUES ($1)", [file])
+        appliedCount += 1
+        continue
+      }
+
       try {
         await client.query("BEGIN")
         await client.query(sql)

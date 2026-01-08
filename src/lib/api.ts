@@ -10,12 +10,26 @@ export type AuthSessionResponse = {
   user: AuthUser
 }
 
-type ApiResult<T> = { data?: T; error?: string }
+type ApiResult<T> = { data?: T; error?: string; status?: number; details?: any }
 export type DispatchListResponse<T> = {
   total: number
   limit: number
   offset: number
   rows: T[]
+}
+
+export type DispatchSubmitResponse = {
+  ok: boolean
+  submitted: number
+  failed: number
+  created_count: number
+  errors_count: number
+  results: Array<{
+    rowIndex: number
+    status: "created" | "error"
+    errors?: Record<string, string>
+  }>
+  error?: string
 }
 
 export type LhTripLookupRow = {
@@ -50,7 +64,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T
     })
     const payload = await response.json().catch(() => null)
     if (!response.ok) {
-      return { error: payload?.error || response.statusText }
+      return { error: payload?.error || response.statusText, status: response.status, details: payload }
     }
     return { data: payload }
   } catch (error) {
@@ -79,6 +93,13 @@ export const authApi = {
 
   async createSeatalkSession(session_id: string) {
     return request<{ success: boolean }>("/api/auth/seatalk/session", {
+      method: "POST",
+      body: JSON.stringify({ session_id }),
+    })
+  },
+
+  async seatalkLogin(session_id: string) {
+    return request<AuthSessionResponse>("/api/auth/seatalk/login", {
       method: "POST",
       body: JSON.stringify({ session_id }),
     })
@@ -151,7 +172,7 @@ export const lookupApi = {
 // Dispatch Report APIs
 export const dispatchApi = {
   async submitRows(rows: any[], submitted_by_ops_id: string) {
-    return request("/api/dispatch/submit", {
+    return request<DispatchSubmitResponse>("/api/dispatch/submit", {
       method: "POST",
       body: JSON.stringify({ rows, submitted_by_ops_id }),
     })

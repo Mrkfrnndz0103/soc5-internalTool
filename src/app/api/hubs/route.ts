@@ -2,6 +2,20 @@ import { NextResponse } from "next/server"
 import { query } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
+import { enforceSessionRateLimit } from "@/lib/rate-limit"
+import { parseRequestJson } from "@/lib/validation"
+import { z } from "zod"
+
+const hubPayloadSchema = z
+  .object({
+    cluster_name: z.string().trim().min(1).optional(),
+    hub_name: z.string().trim().min(1).optional(),
+    region: z.string().trim().min(1).optional(),
+    dock_number: z.string().trim().min(1).optional(),
+    active: z.boolean().optional(),
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, { message: "hub data is required" })
 
 export const GET = withRequestLogging("/api/hubs", async (request: Request) => {
   const session = await getSession()
@@ -42,7 +56,10 @@ export const GET = withRequestLogging("/api/hubs", async (request: Request) => {
     [...params, limit, offset]
   )
 
-  return NextResponse.json({ hubs: rowsResult.rows, total: countResult.rows[0]?.total || 0 })
+  return NextResponse.json(
+    { hubs: rowsResult.rows, total: countResult.rows[0]?.total || 0 },
+    { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" } }
+  )
 })
 
 export const POST = withRequestLogging("/api/hubs", async (request: Request) => {
@@ -51,16 +68,21 @@ export const POST = withRequestLogging("/api/hubs", async (request: Request) => 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const body = await request.json().catch(() => ({}))
-
-  const fields = Object.keys(body || {})
-  if (fields.length === 0) {
-    return NextResponse.json({ error: "hub data is required" }, { status: 400 })
+  const rateLimit = await enforceSessionRateLimit(session.sessionId)
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    )
   }
 
-  const columns = fields.map((key) => `"${key}"`).join(", ")
-  const placeholders = fields.map((_, index) => `$${index + 1}`).join(", ")
-  const values = fields.map((key) => body[key])
+  const parsed = await parseRequestJson(request, hubPayloadSchema)
+  if (parsed.errorResponse) return parsed.errorResponse
+  const entries = Object.entries(parsed.data)
+
+  const columns = entries.map(([key]) => `"${key}"`).join(", ")
+  const placeholders = entries.map((_, index) => `$${index + 1}`).join(", ")
+  const values = entries.map(([, value]) => value)
 
   const result = await query(
     `INSERT INTO outbound_map (${columns})

@@ -22,18 +22,13 @@ declare global {
 const GOOGLE_SCRIPT_ID = "google-gsi-script"
 
 export function LoginModal() {
-  const allowedDomains = (process.env.NEXT_PUBLIC_ALLOWED_EMAIL_DOMAINS || "shopeemobile-external.com,spxexpress.com")
-    .split(",")
-    .map((domain) => domain.trim().toLowerCase())
-    .filter(Boolean)
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
   const seatalkEnabled = process.env.NEXT_PUBLIC_SEATALK_ENABLED !== "false"
   const loginPrompt = seatalkEnabled
-    ? "Scan QR code with SeaTalk (FTE) or enter email (Backroom)"
-    : "Sign in with Google (FTE) or enter email (Backroom)"
+    ? "Scan QR code with SeaTalk or sign in with Google"
+    : "Sign in with Google to continue"
   const [email, setEmail] = useState("")
   const [qrCode, setQrCode] = useState("")
-  const [loading, setLoading] = useState(false)
   const [isQrZoomed, setIsQrZoomed] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
@@ -51,8 +46,8 @@ export function LoginModal() {
     await authApi.createSeatalkSession(sid)
   }, [])
 
-  const handleSeatalkLogin = useCallback(async (email: string) => {
-    const response = await authApi.login(email, "")
+  const handleSeatalkLogin = useCallback(async (sessionId: string) => {
+    const response = await authApi.seatalkLogin(sessionId)
     if (response.error) {
       toast({
         variant: "destructive",
@@ -70,9 +65,9 @@ export function LoginModal() {
   const startPolling = useCallback((sid: string) => {
     pollingRef.current = setInterval(async () => {
       const response = await authApi.checkSeatalkAuth(sid)
-      if (response.data?.authenticated && response.data?.email) {
+      if (response.data?.authenticated) {
         if (pollingRef.current) clearInterval(pollingRef.current)
-        await handleSeatalkLogin(response.data.email)
+        await handleSeatalkLogin(sid)
       }
     }, 2000)
   }, [handleSeatalkLogin])
@@ -191,38 +186,11 @@ export function LoginModal() {
 
   const handleBackroomLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    const domain = email.split("@")[1]?.toLowerCase() || ""
-    if (!domain || !allowedDomains.includes(domain)) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Email",
-        description: `Only ${allowedDomains.map((d) => `@${d}`).join(" or ")} emails are allowed.`,
-      })
-      return
-    }
-
-    setLoading(true)
-    const response = await authApi.login(email, "")
-    setLoading(false)
-
-    if (response.error) {
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: response.error,
-      })
-      return
-    }
-
-    if (response.data) {
-      login(response.data.user)
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current)
-        pollingRef.current = null
-      }
-      setShowSuccess(true)
-    }
+    toast({
+      variant: "destructive",
+      title: "Email login disabled",
+      description: "Use Google Sign-In or SeaTalk QR login instead.",
+    })
   }
 
   const handleQrClick = () => {
@@ -367,30 +335,28 @@ export function LoginModal() {
                 <form onSubmit={handleBackroomLogin} className="space-y-4">
                   <div>
                     <label className="block text-gray-300 text-xs font-medium mb-2">
-                      Enter Google Account (External Email)
+                      Email login is disabled
                     </label>
                     <input
                       type="email"
-                      placeholder="username@shopeemobile-external.com or @spxexpress.com"
+                      placeholder="Use Google Sign-In above"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm bg-[#1a1d29] border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#5a8a8f] transition-colors"
-                      required
+                      className="w-full px-3 py-2.5 text-sm bg-[#1a1d29] border border-gray-700 rounded-lg text-gray-500 placeholder-gray-600 focus:outline-none"
+                      disabled
                     />
                     <p className="text-xs text-gray-500 mt-2">
-                      By proceeding you confirm that you agree to the{" "}
-                      <span className="text-white font-medium">Privacy Policy</span> &{" "}
-                      <span className="text-white font-medium">Terms of Use</span>.
+                      Use Google Sign-In or SeaTalk QR login to continue.
                     </p>
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-2.5 bg-[#5a8a8f] hover:bg-[#4a7a7f] text-white font-semibold rounded-lg transition-all disabled:opacity-50 text-sm"
-                  >
-                    {loading ? "Signing In..." : "Continue"}
-                  </button>
+                    <button
+                      type="submit"
+                      disabled
+                      className="w-full py-2.5 bg-[#3b5154] text-white font-semibold rounded-lg transition-all disabled:opacity-60 text-sm"
+                    >
+                      Continue
+                    </button>
                 </form>
 
                 <div className="mt-4 text-center">

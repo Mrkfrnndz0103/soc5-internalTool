@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/components/ui/use-toast"
-import { lookupApi, type LhTripLookupRow } from "@/lib/api"
+import { dispatchApi, lookupApi, type LhTripLookupRow } from "@/lib/api"
 
 interface DispatchRow {
   id: string
@@ -75,6 +75,12 @@ type StoredReport = {
   editHistory?: EditEntry[]
 }
 
+type SubmitRowResult = {
+  rowIndex: number
+  status: "created" | "error"
+  errors?: Record<string, string>
+}
+
 type ClusterOption = {
   cluster_name: string
   region: string | null
@@ -91,6 +97,9 @@ type ProcessorOption = {
 }
 
 const STORAGE_KEY = "soc5_dispatch_reports"
+const DRAFT_SESSION_KEY = "soc5_dispatch_report_session"
+const DRAFT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000
+const AUTOSAVE_INTERVAL_MS = Number(process.env.NEXT_PUBLIC_DRAFT_AUTOSAVE_INTERVAL || "10000") || 10000
 
 function loadStoredReports(): StoredReport[] {
   if (typeof window === "undefined") return []
@@ -108,6 +117,59 @@ function loadStoredReports(): StoredReport[] {
 function saveStoredReports(reports: StoredReport[]) {
   if (typeof window === "undefined") return
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(reports))
+}
+
+function getDraftSessionId() {
+  if (typeof window === "undefined") return "server"
+  const existing = window.localStorage.getItem(DRAFT_SESSION_KEY)
+  if (existing) return existing
+  const next = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  window.localStorage.setItem(DRAFT_SESSION_KEY, next)
+  return next
+}
+
+function buildDraftKey(opsId?: string) {
+  const sessionId = getDraftSessionId()
+  return `drafts:${opsId || "anonymous"}:submit_report:${sessionId}`
+}
+
+function loadDraft(key: string): { rows: DispatchRow[]; last_saved_at: string } | null {
+  if (typeof window === "undefined") return null
+  const raw = window.localStorage.getItem(key)
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    if (!parsed || !Array.isArray(parsed.rows)) return null
+    if (parsed.last_saved_at) {
+      const savedAt = new Date(parsed.last_saved_at).getTime()
+      if (!Number.isNaN(savedAt) && Date.now() - savedAt > DRAFT_RETENTION_MS) {
+        window.localStorage.removeItem(key)
+        return null
+      }
+    }
+    return parsed as { rows: DispatchRow[]; last_saved_at: string }
+  } catch {
+    return null
+  }
+}
+
+function saveDraft(key: string, rows: DispatchRow[]) {
+  if (typeof window === "undefined") return
+  const payload = {
+    rows,
+    last_saved_at: new Date().toISOString(),
+  }
+  window.localStorage.setItem(key, JSON.stringify(payload))
+}
+
+function clearDraft(key: string) {
+  if (typeof window === "undefined") return
+  window.localStorage.removeItem(key)
+}
+
+function formatRowErrors(errors?: Record<string, string>) {
+  if (!errors) return ""
+  return Object.values(errors).join("; ")
 }
 
 function toDateTimeLocal(value?: string | null) {
@@ -191,11 +253,20 @@ const buildDragPreview = (label: string) => {
 
 export function DispatchReportTable() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, isReady } = useAuth()
   const { toast } = useToast()
   const [rows, setRows] = useState<DispatchRow[]>([
     createEmptyRow({ id: "1", batchNumber: 1 })
   ])
+  const [submitState, setSubmitState] = useState<{
+    status: "idle" | "submitting" | "success" | "error"
+    message: string
+    results?: SubmitRowResult[]
+    submittedCount?: number
+    failedCount?: number
+  }>({ status: "idle", message: "" })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null)
   const [truckLoadPercentage, setTruckLoadPercentage] = useState(0)
   const [selectedFleetSize, setSelectedFleetSize] = useState<string>("6WH")
   
@@ -207,10 +278,18 @@ export function DispatchReportTable() {
   const [isVisible, setIsVisible] = useState(true)
   const [draggingRowId, setDraggingRowId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
+  const rowsRef = useRef<DispatchRow[]>(rows)
+  const draftKeyRef = useRef<string | null>(null)
   const clusterRequestId = useRef(0)
   const processorRequestId = useRef(0)
   const lhTripTimers = useRef<Record<string, ReturnType<typeof setTimeout> | undefined>>({})
   const lhTripRequestIds = useRef<Record<string, number>>({})
+
+  const persistDraft = (nextRows: DispatchRow[]) => {
+    const key = draftKeyRef.current
+    if (!key) return
+    saveDraft(key, nextRows)
+  }
 
   // Pause animations when component is not visible to save resources
   useEffect(() => {
@@ -231,6 +310,50 @@ export function DispatchReportTable() {
       })
     }
   }, [])
+
+  useEffect(() => {
+    rowsRef.current = rows
+  }, [rows])
+
+  useEffect(() => {
+    if (!isReady) return
+    const key = buildDraftKey(user?.ops_id)
+    draftKeyRef.current = key
+    const draft = loadDraft(key)
+    if (draft?.rows?.length) {
+      setRows(draft.rows)
+    }
+  }, [isReady, user?.ops_id])
+
+  useEffect(() => {
+    if (!isReady) return
+    const key = draftKeyRef.current
+    if (!key) return
+    const intervalId = setInterval(() => {
+      saveDraft(key, rowsRef.current)
+    }, AUTOSAVE_INTERVAL_MS)
+    return () => clearInterval(intervalId)
+  }, [isReady, user?.ops_id])
+
+  useEffect(() => {
+    if (submitState.status !== "success") {
+      setRedirectCountdown(null)
+      return
+    }
+    setRedirectCountdown(3)
+    const intervalId = window.setInterval(() => {
+      setRedirectCountdown((prev) => {
+        if (prev === null) return prev
+        if (prev <= 1) {
+          clearInterval(intervalId)
+          router.push("/outbound/prealert")
+          return null
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(intervalId)
+  }, [submitState.status, router])
 
   // Auto-fill batch numbers when rows change - using functional update to avoid dependency issues
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -414,7 +537,11 @@ export function DispatchReportTable() {
 
   // Add new row
   const addRow = () => {
-    setRows(prevRows => [...prevRows, createEmptyRow()])
+    setRows(prevRows => {
+      const nextRows = [...prevRows, createEmptyRow()]
+      persistDraft(nextRows)
+      return nextRows
+    })
   }
 
   // Delete row
@@ -423,7 +550,11 @@ export function DispatchReportTable() {
     if (existingTimer) clearTimeout(existingTimer)
     delete lhTripTimers.current[rowId]
     delete lhTripRequestIds.current[rowId]
-    setRows(rows.filter(row => row.id !== rowId))
+    setRows(prevRows => {
+      const nextRows = prevRows.filter(row => row.id !== rowId)
+      persistDraft(nextRows)
+      return nextRows
+    })
   }
 
   // Clear all rows
@@ -433,7 +564,9 @@ export function DispatchReportTable() {
     })
     lhTripTimers.current = {}
     lhTripRequestIds.current = {}
-    setRows([createEmptyRow({ id: "1", batchNumber: 1 })])
+    const resetRows = [createEmptyRow({ id: "1", batchNumber: 1 })]
+    setRows(resetRows)
+    persistDraft(resetRows)
     setTruckLoadPercentage(0)
   }
 
@@ -532,7 +665,7 @@ export function DispatchReportTable() {
     }
   }, [selectedFleetSize])
 
-  const handleSubmitReport = () => {
+  const handleSubmitReport = async () => {
     if (!user) {
       toast({
         variant: "destructive",
@@ -541,6 +674,8 @@ export function DispatchReportTable() {
       })
       return
     }
+
+    if (isSubmitting) return
 
     const timestamp = new Date().toISOString()
     const date = timestamp.slice(0, 10)
@@ -555,33 +690,131 @@ export function DispatchReportTable() {
       return
     }
 
-    const newReports: StoredReport[] = validRows.map((row, index) => ({
-      id: `dispatch-${Date.now()}-${index}`,
-      status: "Pending",
-      reporter: user.name,
-      hub: row.station || "Unassigned Hub",
-      batch: `Batch ${row.batchNumber}`,
-      lh_trip: row.lHTripNumber,
-      plate: row.plateNumber,
-      date,
-      submittedBy: user.name,
-      submittedByOpsId: user.ops_id,
-      notes: "",
-      createdAt: timestamp,
-      statusUpdatedAt: timestamp,
-      editCount: 0,
-      editHistory: [],
+    const submittedBy = user.ops_id || user.email || user.name
+    const payloadRows = validRows.map((row) => ({
+      id: row.id,
+      cluster_name: row.clusterName,
+      station_name: row.station,
+      region: row.region,
+      count_of_to: row.countTO,
+      total_oid_loaded: row.totalOIDLoaded,
+      actual_docked_time: row.actualDockedTime,
+      dock_number: row.dockNumber,
+      dock_confirmed: row.dockConfirmed,
+      actual_depart_time: row.actualDepartTime || null,
+      processor_name: row.processorName,
+      lh_trip_number: row.lHTripNumber,
+      plate_number: row.plateNumber,
+      fleet_size: row.fleetSize,
+      assigned_ops_id: row.assignedPIC,
     }))
 
-    const existing = loadStoredReports()
-    saveStoredReports([...newReports, ...existing])
-
-    toast({
-      title: "Report submitted",
-      description: `Submitted ${newReports.length} dispatch rows.`,
+    setIsSubmitting(true)
+    setSubmitState({
+      status: "submitting",
+      message: `Submitting ${payloadRows.length} row${payloadRows.length === 1 ? "" : "s"}...`,
+      submittedCount: payloadRows.length,
     })
 
-    router.push("/outbound/prealert")
+    const response = await dispatchApi.submitRows(payloadRows, submittedBy)
+
+    if (response.error) {
+      const detailRows = Array.isArray(response.details?.rows) ? response.details.rows : []
+      const errorResults: SubmitRowResult[] = detailRows.map((detail: any) => ({
+        rowIndex:
+          typeof detail.rowIndex === "number"
+            ? detail.rowIndex
+            : typeof detail.index === "number"
+              ? detail.index
+              : 0,
+        status: "error",
+        errors: detail.errors,
+      }))
+      setSubmitState({
+        status: "error",
+        message: response.error,
+        results: errorResults.length ? errorResults : undefined,
+        failedCount: errorResults.length || undefined,
+      })
+      toast({
+        variant: "destructive",
+        title: "Submit failed",
+        description: response.error,
+      })
+      setIsSubmitting(false)
+      return
+    }
+
+    const results: SubmitRowResult[] = Array.isArray(response.data?.results)
+      ? response.data?.results.map((result: any) => ({
+          rowIndex: typeof result.rowIndex === "number" ? result.rowIndex : 0,
+          status: result.status === "created" ? "created" : "error",
+          errors: result.errors,
+        }))
+      : payloadRows.map((_, index) => ({ rowIndex: index, status: "created" }))
+
+    const createdCount =
+      typeof response.data?.submitted === "number"
+        ? response.data.submitted
+        : typeof response.data?.created_count === "number"
+          ? response.data.created_count
+          : results.filter((result) => result.status === "created").length
+    const failedCount =
+      typeof response.data?.failed === "number"
+        ? response.data.failed
+        : results.filter((result) => result.status === "error").length
+    const ok = response.data?.ok === true && failedCount === 0
+    const responseMessage = typeof response.data?.error === "string" ? response.data.error : undefined
+
+    if (ok) {
+      const newReports: StoredReport[] = validRows.map((row, index) => ({
+        id: `dispatch-${Date.now()}-${index}`,
+        status: "Pending",
+        reporter: user.name,
+        hub: row.station || "Unassigned Hub",
+        batch: `Batch ${row.batchNumber}`,
+        lh_trip: row.lHTripNumber,
+        plate: row.plateNumber,
+        date,
+        submittedBy: user.name,
+        submittedByOpsId: user.ops_id,
+        notes: "",
+        createdAt: timestamp,
+        statusUpdatedAt: timestamp,
+        editCount: 0,
+        editHistory: [],
+      }))
+
+      const existing = loadStoredReports()
+      saveStoredReports([...newReports, ...existing])
+      if (draftKeyRef.current) {
+        clearDraft(draftKeyRef.current)
+      }
+
+      setSubmitState({
+        status: "success",
+        message: "Submitted successfully.",
+        results,
+        submittedCount: createdCount,
+        failedCount: 0,
+      })
+    } else {
+      setSubmitState({
+        status: "error",
+        message: responseMessage || (failedCount > 0 ? "Submitted with errors." : "Submit failed"),
+        results,
+        submittedCount: createdCount,
+        failedCount,
+      })
+    }
+    setIsSubmitting(false)
+
+    toast({
+      title: ok ? "Report submitted" : "Submit completed with errors",
+      description: ok
+        ? `Submitted ${createdCount} dispatch row${createdCount === 1 ? "" : "s"}.`
+        : `Failed ${failedCount} row${failedCount === 1 ? "" : "s"}.`,
+    })
   }
 
   return (
@@ -1491,11 +1724,58 @@ export function DispatchReportTable() {
         <Button
           className="bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 px-8 py-3 text-base font-semibold border-0"
           onClick={handleSubmitReport}
+          disabled={isSubmitting}
         >
           <Save className="h-5 w-5 mr-2" />
-          Submit Report
+          {isSubmitting ? "Submitting..." : "Submit Report"}
         </Button>
       </div>
+      {submitState.status !== "idle" && (
+        <div className="mt-4 w-full max-w-2xl mx-auto rounded-2xl border border-slate-200/70 bg-white/90 px-4 py-3 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p
+              className={`text-sm font-medium ${
+                submitState.status === "error" ? "text-rose-600" : "text-slate-700"
+              }`}
+            >
+              {submitState.message}
+            </p>
+            {submitState.status === "success" && (
+              <Button variant="outline" size="sm" onClick={() => router.push("/outbound/prealert")}>
+                Go now
+              </Button>
+            )}
+          </div>
+          {submitState.status === "success" && typeof submitState.submittedCount === "number" && (
+            <p className="mt-1 text-xs text-slate-500">
+              Summary: {submitState.submittedCount} row{submitState.submittedCount === 1 ? "" : "s"} submitted.
+            </p>
+          )}
+          {submitState.status === "error" && typeof submitState.failedCount === "number" && (
+            <p className="mt-1 text-xs text-slate-500">
+              {submitState.failedCount} row{submitState.failedCount === 1 ? "" : "s"} failed. Fix the errors and try again.
+            </p>
+          )}
+          {submitState.status === "success" && redirectCountdown !== null && (
+            <p className="mt-2 text-xs text-slate-500">
+              Redirecting back to Dispatch List in {redirectCountdown}...
+            </p>
+          )}
+          {submitState.results?.length ? (
+            <ul className="mt-3 space-y-2 text-xs text-slate-600">
+              {submitState.results.map((result) => (
+                <li key={`${result.status}-${result.rowIndex}`} className="flex flex-wrap gap-2">
+                  <span className="font-semibold">Row {result.rowIndex + 1}</span>
+                  <span className={result.status === "created" ? "text-emerald-600" : "text-rose-600"}>
+                    {result.status === "created" ? "created" : "error"}
+                  </span>
+                  {result.errors ? <span>{formatRowErrors(result.errors)}</span> : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }

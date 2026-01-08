@@ -137,6 +137,9 @@ export const mockDispatchApi = {
     }))
 
     return mockResponse({
+      ok: true,
+      submitted: results.length,
+      failed: 0,
       results,
       created_count: results.length,
       errors_count: 0,

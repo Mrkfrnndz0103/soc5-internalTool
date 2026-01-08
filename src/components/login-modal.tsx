@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { authApi } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
 import { Mail, Eye, EyeOff, QrCode, MessageCircle, X, Send } from "lucide-react"
 
@@ -11,12 +10,12 @@ export function LoginModal() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [loading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [chatMessage, setChatMessage] = useState("")
 
-  const { login, isAuthenticated, isReady } = useAuth()
+  const { isAuthenticated, isReady } = useAuth()
   const { toast } = useToast()
 
   useEffect(() => {
@@ -34,23 +33,11 @@ export function LoginModal() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-
-    const response = await authApi.login(username, password)
-    setLoading(false)
-
-    if (response.error) {
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: response.error,
-      })
-      return
-    }
-
-    if (response.data) {
-      login(response.data.user)
-    }
+    toast({
+      variant: "destructive",
+      title: "Login disabled",
+      description: "Password login is disabled. Use Google Sign-In or SeaTalk QR login.",
+    })
   }
 
   const handleSendMessage = () => {

@@ -30,5 +30,7 @@ export const GET = withRequestLogging("/api/kpi/intraday", async (request: Reque
     params
   )
 
-  return NextResponse.json(result.rows)
+  return NextResponse.json(result.rows, {
+    headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
+  })
 })

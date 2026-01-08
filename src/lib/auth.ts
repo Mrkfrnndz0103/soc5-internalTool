@@ -1,6 +1,7 @@
 import "server-only"
 import { cookies } from "next/headers"
 import { query } from "@/lib/db"
+import { getRequestContext } from "@/lib/request-context"
 
 export type SessionUser = {
   ops_id?: string
@@ -96,7 +97,10 @@ export async function getSession() {
   const now = Date.now()
   const lastSeen = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0
 
-  if (!lastSeen || now - lastSeen > SESSION_REFRESH_MINUTES * 60 * 1000) {
+  const route = getRequestContext()?.route
+  const isApiRequest = route ? route.startsWith("/api/") : false
+
+  if (isApiRequest && (!lastSeen || now - lastSeen > SESSION_REFRESH_MINUTES * 60 * 1000)) {
     await query("UPDATE auth_sessions SET last_seen_at = NOW() WHERE session_id = $1", [row.session_id])
   }
 

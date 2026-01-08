@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { createHash } from "crypto"
 import { query } from "@/lib/db"
 import { withRequestLogging } from "@/lib/request-context"
+import { parseRequestJson } from "@/lib/validation"
+import { z } from "zod"
 
 type RawRow = Record<string, unknown>
 
@@ -24,6 +26,13 @@ type SheetRow = {
   rawPayload: RawRow
 }
 
+const syncPayloadSchema = z
+  .object({
+    rows: z.array(z.any()).optional(),
+    headers: z.array(z.any()).optional(),
+  })
+  .passthrough()
+
 const HEADER_ALIASES: Record<string, string> = {
   dispatchdate: "dispatch_date",
   origin: "origin",
@@ -40,28 +49,58 @@ const HEADER_ALIASES: Record<string, string> = {
   drivername: "driver_name",
 }
 
-const SHEET_UPSERT_SQL = `
-  INSERT INTO dispatch_google_sheet_rows
-  (row_key, dispatch_date, origin, to_dest_station_name, trip_number, to_number, to_parcel_quantity, loaded_timestamp, operator_raw, operator_ops_id, operator_name, departure_timestamp, truck_size, vehicle_number, driver_name, raw_payload, updated_at)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
-  ON CONFLICT (row_key) DO UPDATE SET
-    dispatch_date = EXCLUDED.dispatch_date,
-    origin = EXCLUDED.origin,
-    to_dest_station_name = EXCLUDED.to_dest_station_name,
-    trip_number = EXCLUDED.trip_number,
-    to_number = EXCLUDED.to_number,
-    to_parcel_quantity = EXCLUDED.to_parcel_quantity,
-    loaded_timestamp = EXCLUDED.loaded_timestamp,
-    operator_raw = EXCLUDED.operator_raw,
-    operator_ops_id = COALESCE(EXCLUDED.operator_ops_id, dispatch_google_sheet_rows.operator_ops_id),
-    operator_name = COALESCE(EXCLUDED.operator_name, dispatch_google_sheet_rows.operator_name),
-    departure_timestamp = EXCLUDED.departure_timestamp,
-    truck_size = EXCLUDED.truck_size,
-    vehicle_number = EXCLUDED.vehicle_number,
-    driver_name = EXCLUDED.driver_name,
-    raw_payload = EXCLUDED.raw_payload,
-    updated_at = NOW();
-`
+const BATCH_SIZE = 500
+const FETCH_TIMEOUT_MS = 15000
+const UPSERT_COLUMNS = [
+  "row_key",
+  "dispatch_date",
+  "origin",
+  "to_dest_station_name",
+  "trip_number",
+  "to_number",
+  "to_parcel_quantity",
+  "loaded_timestamp",
+  "operator_raw",
+  "operator_ops_id",
+  "operator_name",
+  "departure_timestamp",
+  "truck_size",
+  "vehicle_number",
+  "driver_name",
+  "raw_payload",
+] as const
+
+function buildUpsertSql(rowCount: number) {
+  const columnList = UPSERT_COLUMNS.join(", ")
+  const placeholders = Array.from({ length: rowCount }, (_, rowIndex) => {
+    const base = rowIndex * UPSERT_COLUMNS.length
+    const fields = UPSERT_COLUMNS.map((_, index) => `$${base + index + 1}`).join(", ")
+    return `(${fields}, NOW())`
+  }).join(", ")
+
+  return `
+    INSERT INTO dispatch_google_sheet_rows
+    (${columnList}, updated_at)
+    VALUES ${placeholders}
+    ON CONFLICT (row_key) DO UPDATE SET
+      dispatch_date = EXCLUDED.dispatch_date,
+      origin = EXCLUDED.origin,
+      to_dest_station_name = EXCLUDED.to_dest_station_name,
+      trip_number = EXCLUDED.trip_number,
+      to_number = EXCLUDED.to_number,
+      to_parcel_quantity = EXCLUDED.to_parcel_quantity,
+      loaded_timestamp = EXCLUDED.loaded_timestamp,
+      operator_raw = EXCLUDED.operator_raw,
+      operator_ops_id = COALESCE(EXCLUDED.operator_ops_id, dispatch_google_sheet_rows.operator_ops_id),
+      operator_name = COALESCE(EXCLUDED.operator_name, dispatch_google_sheet_rows.operator_name),
+      departure_timestamp = EXCLUDED.departure_timestamp,
+      truck_size = EXCLUDED.truck_size,
+      vehicle_number = EXCLUDED.vehicle_number,
+      driver_name = EXCLUDED.driver_name,
+      raw_payload = EXCLUDED.raw_payload,
+      updated_at = NOW();
+  `
+}
 
 function normalizeHeader(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "")
@@ -186,7 +225,21 @@ async function fetchSheetRows(): Promise<RawRow[]> {
   url.searchParams.set("valueRenderOption", "FORMATTED_VALUE")
   url.searchParams.set("dateTimeRenderOption", "FORMATTED_STRING")
 
-  const response = await fetch(url.toString())
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+  let response: Response
+
+  try {
+    response = await fetch(url.toString(), { signal: controller.signal })
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Google Sheets request timed out")
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
+
   if (!response.ok) {
     throw new Error(`Google Sheets fetch failed: ${response.status}`)
   }
@@ -240,25 +293,32 @@ function rowsFromBody(body: any): RawRow[] | null {
 }
 
 async function upsertSheetRows(rows: SheetRow[]) {
-  for (const row of rows) {
-    await query(SHEET_UPSERT_SQL, [
-      row.rowKey,
-      row.dispatchDate,
-      row.origin,
-      row.toDestStationName,
-      row.tripNumber,
-      row.toNumber,
-      row.toParcelQuantity,
-      row.loadedTimestamp,
-      row.operatorRaw,
-      row.operatorOpsId,
-      row.operatorName,
-      row.departureTimestamp,
-      row.truckSize,
-      row.vehicleNumber,
-      row.driverName,
-      JSON.stringify(row.rawPayload),
-    ])
+  for (let start = 0; start < rows.length; start += BATCH_SIZE) {
+    const chunk = rows.slice(start, start + BATCH_SIZE)
+    const values: Array<string | number | Date | null> = []
+
+    chunk.forEach((row) => {
+      values.push(
+        row.rowKey,
+        row.dispatchDate ?? null,
+        row.origin ?? null,
+        row.toDestStationName ?? null,
+        row.tripNumber,
+        row.toNumber ?? null,
+        row.toParcelQuantity ?? null,
+        row.loadedTimestamp ?? null,
+        row.operatorRaw ?? null,
+        row.operatorOpsId ?? null,
+        row.operatorName ?? null,
+        row.departureTimestamp ?? null,
+        row.truckSize ?? null,
+        row.vehicleNumber ?? null,
+        row.driverName ?? null,
+        JSON.stringify(row.rawPayload)
+      )
+    })
+
+    await query(buildUpsertSql(chunk.length), values)
   }
 }
 
@@ -274,7 +334,9 @@ export const POST = withRequestLogging("/api/sync/google-sheets", async (request
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const body = await request.json().catch(() => ({}))
+  const parsed = await parseRequestJson(request, syncPayloadSchema)
+  if (parsed.errorResponse) return parsed.errorResponse
+  const body = parsed.data
   let rawRows = rowsFromBody(body)
 
   if (!rawRows) {
