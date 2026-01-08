@@ -3,4 +3,8 @@
   publish = ".next"
 
 [[plugins]]
-  package = "@netlify/plugin-nextjs"
+package = "netlify-plugin-ghost-markdown"
+  [plugins.inputs]
+
+  ghostURL = "${GHOST_URL}"
+  ghostKey = "${CONTENT_API_KEY}"
