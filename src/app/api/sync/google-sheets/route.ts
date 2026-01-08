@@ -217,7 +217,7 @@ function rowsFromBody(body: any): RawRow[] | null {
 
   if (Array.isArray(rows[0])) {
     const headerSource = Array.isArray(body.headers) ? body.headers : (rows[0] as unknown[])
-    const headers = headerSource.map((header) => toStringValue(header))
+    const headers: string[] = headerSource.map((header: unknown) => toStringValue(header))
     const dataRows = Array.isArray(body.headers) ? rows : rows.slice(1)
     return dataRows
       .filter((row) => Array.isArray(row))
