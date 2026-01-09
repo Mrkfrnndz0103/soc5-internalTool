@@ -36,6 +36,10 @@ const AVATAR_PRESETS = {
   ]
 }
 
+const MAX_CHAT_MESSAGES = 200
+
+const trimMessages = (messages: Message[]) => messages.slice(-MAX_CHAT_MESSAGES)
+
 export function ChatPopup() {
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
@@ -123,7 +127,7 @@ export function ChatPopup() {
       replyTo: replyingTo,
     }
 
-    setMessages([...messages, newMessage])
+    setMessages((prev) => trimMessages([...prev, newMessage]))
     setInputValue("")
     setReplyingTo(null)
     setShowEmojiPicker(false)
@@ -157,7 +161,7 @@ export function ChatPopup() {
         const updated = prev.map((m) =>
           m.id === newMessage.id ? { ...m, status: "read" as const } : m
         )
-        return [
+        return trimMessages([
           ...updated,
           {
             id: (Date.now() + 1).toString(),
@@ -166,7 +170,7 @@ export function ChatPopup() {
             timestamp: new Date(),
             status: "read" as const,
           },
-        ]
+        ])
       })
     }, 1500)
     timeoutRefs.current.push(responseTimeout)

@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/components/ui/use-toast"
 import { dispatchApi, lookupApi, type LhTripLookupRow } from "@/lib/api"
+import { loadDispatchReportCache, saveDispatchReportCache } from "@/lib/dispatch-report-cache"
 
 interface DispatchRow {
   id: string
@@ -96,27 +97,16 @@ type ProcessorOption = {
   ops_id: string
 }
 
-const STORAGE_KEY = "soc5_dispatch_reports"
 const DRAFT_SESSION_KEY = "soc5_dispatch_report_session"
 const DRAFT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000
-const AUTOSAVE_INTERVAL_MS = Number(process.env.NEXT_PUBLIC_DRAFT_AUTOSAVE_INTERVAL || "10000") || 10000
+const AUTOSAVE_DEBOUNCE_MS = Number(process.env.NEXT_PUBLIC_DRAFT_AUTOSAVE_INTERVAL || "10000") || 10000
 
 function loadStoredReports(): StoredReport[] {
-  if (typeof window === "undefined") return []
-  const raw = window.localStorage.getItem(STORAGE_KEY)
-  if (!raw) return []
-  try {
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) return parsed as StoredReport[]
-  } catch {
-    return []
-  }
-  return []
+  return loadDispatchReportCache<StoredReport>()
 }
 
 function saveStoredReports(reports: StoredReport[]) {
-  if (typeof window === "undefined") return
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(reports))
+  saveDispatchReportCache(reports)
 }
 
 function getDraftSessionId() {
@@ -278,8 +268,8 @@ export function DispatchReportTable() {
   const [isVisible, setIsVisible] = useState(true)
   const [draggingRowId, setDraggingRowId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
-  const rowsRef = useRef<DispatchRow[]>(rows)
   const draftKeyRef = useRef<string | null>(null)
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const clusterRequestId = useRef(0)
   const processorRequestId = useRef(0)
   const lhTripTimers = useRef<Record<string, ReturnType<typeof setTimeout> | undefined>>({})
@@ -312,10 +302,6 @@ export function DispatchReportTable() {
   }, [])
 
   useEffect(() => {
-    rowsRef.current = rows
-  }, [rows])
-
-  useEffect(() => {
     if (!isReady) return
     const key = buildDraftKey(user?.ops_id)
     draftKeyRef.current = key
@@ -329,11 +315,19 @@ export function DispatchReportTable() {
     if (!isReady) return
     const key = draftKeyRef.current
     if (!key) return
-    const intervalId = setInterval(() => {
-      saveDraft(key, rowsRef.current)
-    }, AUTOSAVE_INTERVAL_MS)
-    return () => clearInterval(intervalId)
-  }, [isReady, user?.ops_id])
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current)
+    }
+    autosaveTimerRef.current = setTimeout(() => {
+      saveDraft(key, rows)
+    }, AUTOSAVE_DEBOUNCE_MS)
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current)
+        autosaveTimerRef.current = null
+      }
+    }
+  }, [rows, isReady, user?.ops_id])
 
   useEffect(() => {
     if (submitState.status !== "success") {

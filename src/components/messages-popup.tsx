@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import { 
   MessageSquare, X, Send, Minimize2, Search, Plus, Users,
   Check, CheckCheck, Paperclip, Smile, MoreVertical, Phone, 
@@ -108,6 +108,12 @@ const getMockChats = (users: User[]): Chat[] => [
 
 const EMOJI_LIST = ["😀", "😂", "😍", "🥰", "😊", "🤔", "👍", "👎", "❤️", "🔥", "🎉", "💯", "😢", "😮", "🙏", "👏", "✅", "❌", "⭐", "💪"]
 
+const MAX_CHAT_THREADS = 50
+const MAX_THREAD_MESSAGES = 200
+
+const trimThreadMessages = (messages: Message[]) => messages.slice(-MAX_THREAD_MESSAGES)
+const trimChats = (chats: Chat[]) => chats.slice(0, MAX_CHAT_THREADS)
+
 interface MessagesPopupProps {
   isOpen: boolean
   onClose: () => void
@@ -118,8 +124,8 @@ interface MessagesPopupProps {
 export function MessagesPopup({ isOpen, onClose, isMinimized, onToggleMinimize }: MessagesPopupProps) {
   // Lazy initialization - mock data only created once when component first mounts
   const [mockUsers] = useState<User[]>(() => getMockUsers())
-  const [chats, setChats] = useState<Chat[]>(() => getMockChats(getMockUsers()))
-  const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
+  const [chats, setChats] = useState<Chat[]>(() => getMockChats(mockUsers))
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -129,6 +135,10 @@ export function MessagesPopup({ isOpen, onClose, isMinimized, onToggleMinimize }
   const [groupName, setGroupName] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const [chatMenuOpen, setChatMenuOpen] = useState<string | null>(null)
+  const selectedChat = useMemo(
+    () => chats.find((chat) => chat.id === selectedChatId) || null,
+    [chats, selectedChatId]
+  )
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const timeoutRefs = useRef<NodeJS.Timeout[]>([])
@@ -142,11 +152,22 @@ export function MessagesPopup({ isOpen, onClose, isMinimized, onToggleMinimize }
   }, [])
 
   useEffect(() => {
+    if (!selectedChatId) return
+    if (!chats.some((chat) => chat.id === selectedChatId)) {
+      setSelectedChatId(null)
+    }
+  }, [chats, selectedChatId])
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [selectedChat?.messages])
 
   const handleSend = () => {
     if (!inputValue.trim() || !selectedChat) return
+
+    const chatId = selectedChat.id
+    const chatType = selectedChat.type
+    const participantId = selectedChat.participants[0]?.id
 
     const newMessage: Message = {
       id: Date.now().toString(),
@@ -157,11 +178,11 @@ export function MessagesPopup({ isOpen, onClose, isMinimized, onToggleMinimize }
     }
 
     setChats(prev => prev.map(chat => 
-      chat.id === selectedChat.id 
-        ? { ...chat, messages: [...chat.messages, newMessage], lastMessage: newMessage }
+      chat.id === chatId 
+        ? { ...chat, messages: trimThreadMessages([...chat.messages, newMessage]), lastMessage: newMessage }
         : chat
     ))
-    setSelectedChat(prev => prev ? { ...prev, messages: [...prev.messages, newMessage] } : null)
+    setSelectedChatId(chatId)
     setInputValue("")
     setShowEmojiPicker(false)
 
@@ -170,29 +191,28 @@ export function MessagesPopup({ isOpen, onClose, isMinimized, onToggleMinimize }
     timeoutRefs.current = []
 
     // Simulate status updates with tracked timeouts
-    const sentTimeout = setTimeout(() => updateMessageStatus(selectedChat.id, newMessage.id, "sent"), 300)
-    const deliveredTimeout = setTimeout(() => updateMessageStatus(selectedChat.id, newMessage.id, "delivered"), 800)
+    const sentTimeout = setTimeout(() => updateMessageStatus(chatId, newMessage.id, "sent"), 300)
+    const deliveredTimeout = setTimeout(() => updateMessageStatus(chatId, newMessage.id, "delivered"), 800)
     timeoutRefs.current.push(sentTimeout, deliveredTimeout)
     
     // Simulate typing and response for direct chats
-    if (selectedChat.type === "direct") {
+    if (chatType === "direct" && participantId) {
       setIsTyping(true)
       const responseTimeout = setTimeout(() => {
         setIsTyping(false)
         const responseMessage: Message = {
           id: (Date.now() + 1).toString(),
           text: "Got it! I'll get back to you shortly. 👍",
-          senderId: selectedChat.participants[0].id,
+          senderId: participantId,
           timestamp: new Date(),
           status: "read",
         }
         setChats(prev => prev.map(chat => 
-          chat.id === selectedChat.id 
-            ? { ...chat, messages: [...chat.messages, responseMessage], lastMessage: responseMessage }
+          chat.id === chatId 
+            ? { ...chat, messages: trimThreadMessages([...chat.messages, responseMessage]), lastMessage: responseMessage }
             : chat
         ))
-        setSelectedChat(prev => prev ? { ...prev, messages: [...prev.messages, responseMessage] } : null)
-        updateMessageStatus(selectedChat.id, newMessage.id, "read")
+        updateMessageStatus(chatId, newMessage.id, "read")
       }, 2000)
       timeoutRefs.current.push(responseTimeout)
     }
@@ -204,17 +224,12 @@ export function MessagesPopup({ isOpen, onClose, isMinimized, onToggleMinimize }
         ? { ...chat, messages: chat.messages.map(m => m.id === messageId ? { ...m, status } : m) }
         : chat
     ))
-    setSelectedChat(prev => 
-      prev?.id === chatId 
-        ? { ...prev, messages: prev.messages.map(m => m.id === messageId ? { ...m, status } : m) }
-        : prev
-    )
   }
 
   const createDirectChat = (user: User) => {
     const existingChat = chats.find(c => c.type === "direct" && c.participants[0].id === user.id)
     if (existingChat) {
-      setSelectedChat(existingChat)
+      setSelectedChatId(existingChat.id)
     } else {
       const newChat: Chat = {
         id: Date.now().toString(),
@@ -224,8 +239,8 @@ export function MessagesPopup({ isOpen, onClose, isMinimized, onToggleMinimize }
         messages: [],
         unreadCount: 0,
       }
-      setChats(prev => [newChat, ...prev])
-      setSelectedChat(newChat)
+      setChats(prev => trimChats([newChat, ...prev]))
+      setSelectedChatId(newChat.id)
     }
     setShowNewChat(false)
   }
@@ -246,8 +261,8 @@ export function MessagesPopup({ isOpen, onClose, isMinimized, onToggleMinimize }
       }],
       unreadCount: 0,
     }
-    setChats(prev => [newChat, ...prev])
-    setSelectedChat(newChat)
+    setChats(prev => trimChats([newChat, ...prev]))
+    setSelectedChatId(newChat.id)
     setShowGroupCreate(false)
     setSelectedUsers([])
     setGroupName("")
@@ -269,7 +284,7 @@ export function MessagesPopup({ isOpen, onClose, isMinimized, onToggleMinimize }
 
   const deleteChat = (chatId: string) => {
     setChats(prev => prev.filter(chat => chat.id !== chatId))
-    if (selectedChat?.id === chatId) setSelectedChat(null)
+    if (selectedChatId === chatId) setSelectedChatId(null)
     setChatMenuOpen(null)
   }
 
@@ -405,7 +420,10 @@ export function MessagesPopup({ isOpen, onClose, isMinimized, onToggleMinimize }
                     className="relative group"
                   >
                     <button
-                      onClick={() => { setSelectedChat(chat); setChats(prev => prev.map(c => c.id === chat.id ? { ...c, unreadCount: 0 } : c)) }}
+                      onClick={() => {
+                        setSelectedChatId(chat.id)
+                        setChats(prev => prev.map(c => c.id === chat.id ? { ...c, unreadCount: 0 } : c))
+                      }}
                       className={cn(
                         "w-full flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors text-left",
                         chat.unreadCount > 0 && "bg-primary/5"
@@ -601,7 +619,7 @@ export function MessagesPopup({ isOpen, onClose, isMinimized, onToggleMinimize }
             <div className="flex-1 flex flex-col">
               {/* Chat Header */}
               <div className="p-3 border-b flex items-center gap-3">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedChat(null)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedChatId(null)}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <div className="relative">

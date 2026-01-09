@@ -58,4 +58,4 @@ All methods return:
 
 This layer targets PostgreSQL-backed API routes. Client method signatures remain stable while the backend uses `DATABASE_URL`.
 
-Last Updated: 2026-01-08
+Last Updated: 2026-01-09

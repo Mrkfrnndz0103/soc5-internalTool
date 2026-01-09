@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
+import { loadDispatchReportCache, saveDispatchReportCache } from "@/lib/dispatch-report-cache"
 import { Search, Download, MoreHorizontal, Folder, CheckCircle, Tag, Clock, UserCheck, AlertTriangle } from "lucide-react"
 
 type Status = "Pending" | "Acknowledged" | "Pending_Edit" | "Confirmed"
@@ -46,7 +47,6 @@ type Report = {
   editHistory?: EditEntry[]
 }
 
-const STORAGE_KEY = "soc5_dispatch_reports"
 const AUTO_ASSIGN_MS = 5 * 60 * 1000
 
 const HUBS = [
@@ -125,20 +125,12 @@ function generateSampleReports(count = 50): Report[] {
 
 function loadReports(): Report[] {
   if (typeof window === "undefined") return generateSampleReports(30)
-  const raw = window.localStorage.getItem(STORAGE_KEY)
-  if (!raw) return generateSampleReports(30)
-  try {
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) return parsed as Report[]
-  } catch {
-    return generateSampleReports(30)
-  }
-  return generateSampleReports(30)
+  const cached = loadDispatchReportCache<Report>()
+  return cached.length ? cached : generateSampleReports(30)
 }
 
 function saveReports(reports: Report[]) {
-  if (typeof window === "undefined") return
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(reports))
+  saveDispatchReportCache(reports)
 }
 
 export function PrealertPage() {

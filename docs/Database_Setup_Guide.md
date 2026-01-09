@@ -214,4 +214,4 @@ psql -U soc5_app -h localhost -p 5432 soc5_outbound < backup.sql
 ### Permission denied
 - Ensure the user owns the database or has privileges.
 
-Last Updated: 2026-01-08
+Last Updated: 2026-01-09

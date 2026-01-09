@@ -30,9 +30,15 @@ async function applyMigrations() {
   }
 
   const sslEnabled = process.env.DATABASE_SSL === "true"
+  const max = Number(process.env.DATABASE_POOL_MAX || "4")
+  const idleTimeoutMillis = Number(process.env.DATABASE_POOL_IDLE_TIMEOUT_MS || "30000")
+  const connectionTimeoutMillis = Number(process.env.DATABASE_POOL_CONNECTION_TIMEOUT_MS || "2000")
   const pool = new Pool({
     connectionString,
     ssl: sslEnabled ? { rejectUnauthorized: false } : undefined,
+    max: Number.isFinite(max) ? max : undefined,
+    idleTimeoutMillis: Number.isFinite(idleTimeoutMillis) ? idleTimeoutMillis : undefined,
+    connectionTimeoutMillis: Number.isFinite(connectionTimeoutMillis) ? connectionTimeoutMillis : undefined,
   })
 
   const client = await pool.connect()

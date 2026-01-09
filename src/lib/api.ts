@@ -11,12 +11,13 @@ export type AuthSessionResponse = {
 }
 
 type ApiResult<T> = { data?: T; error?: string; status?: number; details?: any }
-export type DispatchListResponse<T> = {
+export type ListResponse<T> = {
   total: number
   limit: number
   offset: number
   rows: T[]
 }
+export type DispatchListResponse<T> = ListResponse<T>
 
 export type DispatchSubmitResponse = {
   ok: boolean
@@ -185,10 +186,18 @@ export const dispatchApi = {
     region?: string
     startDate?: string
     endDate?: string
+    fields?: string[]
   }) {
-    return request<DispatchListResponse<T>>(`/api/dispatch${buildQuery(params as Record<string, string | number | boolean | undefined>)}`, {
-      method: "GET",
-    })
+    const { fields, ...rest } = params
+    return request<DispatchListResponse<T>>(
+      `/api/dispatch${buildQuery({
+        ...rest,
+        fields: fields?.join(","),
+      } as Record<string, string | number | boolean | undefined>)}`,
+      {
+        method: "GET",
+      }
+    )
   },
 
   async verifyRows(verifyData: {
@@ -233,19 +242,40 @@ export const hubApi = {
 
 // KPI & Compliance APIs (Google Sheets data synced to PostgreSQL)
 export const kpiApi = {
-  async getMDT(params?: { startDate?: string; endDate?: string }) {
-    return request(`/api/kpi/mdt${buildQuery(params || {})}`, { method: "GET" })
+  async getMDT(params?: { startDate?: string; endDate?: string; limit?: number; offset?: number }) {
+    return request<ListResponse<{
+      date: string
+      mdt_score: number | null
+      target: number | null
+    }>>(`/api/kpi/mdt${buildQuery(params || {})}`, { method: "GET" })
   },
 
-  async getWorkstation(params?: { startDate?: string; endDate?: string }) {
-    return request(`/api/kpi/workstation${buildQuery(params || {})}`, { method: "GET" })
+  async getWorkstation(params?: { startDate?: string; endDate?: string; limit?: number; offset?: number }) {
+    return request<ListResponse<{
+      date: string
+      workstation: string | null
+      utilization: number | null
+      efficiency: number | null
+    }>>(`/api/kpi/workstation${buildQuery(params || {})}`, { method: "GET" })
   },
 
-  async getProductivity(params?: { startDate?: string; endDate?: string }) {
-    return request(`/api/kpi/productivity${buildQuery(params || {})}`, { method: "GET" })
+  async getProductivity(params?: { startDate?: string; endDate?: string; limit?: number; offset?: number }) {
+    return request<ListResponse<{
+      date: string | null
+      daily_average: number | null
+      weekly_average: number | null
+      monthly_total: number | null
+      trend: string | null
+    }>>(`/api/kpi/productivity${buildQuery(params || {})}`, { method: "GET" })
   },
 
-  async getIntraday(date?: string) {
-    return request(`/api/kpi/intraday${buildQuery({ date })}`, { method: "GET" })
+  async getIntraday(params?: { date?: string; limit?: number; offset?: number }) {
+    return request<ListResponse<{
+      date: string | null
+      hour: number | null
+      dispatches: number | null
+      volume: number | null
+      timestamp: string | null
+    }>>(`/api/kpi/intraday${buildQuery(params || {})}`, { method: "GET" })
   },
 }

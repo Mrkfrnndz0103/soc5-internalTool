@@ -9,8 +9,17 @@ export const GET = withRequestLogging("/api/kpi/intraday", async (request: Reque
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const DEFAULT_LIMIT = 100
+  const MAX_LIMIT = 1000
+
   const { searchParams } = new URL(request.url)
   const date = searchParams.get("date")
+  const limitRaw = Number(searchParams.get("limit") || String(DEFAULT_LIMIT))
+  const offsetRaw = Number(searchParams.get("offset") || "0")
+  const limit = Number.isFinite(limitRaw)
+    ? Math.min(Math.max(limitRaw, 1), MAX_LIMIT)
+    : DEFAULT_LIMIT
+  const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0
 
   const filters: string[] = []
   const params: string[] = []
@@ -22,15 +31,32 @@ export const GET = withRequestLogging("/api/kpi/intraday", async (request: Reque
 
   const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : ""
 
-  const result = await query(
-    `SELECT *
+  const countResult = await query(
+    `SELECT COUNT(*)::int AS total
      FROM kpi_intraday
-     ${whereClause}
-     ORDER BY timestamp DESC`,
+     ${whereClause}`,
     params
   )
 
-  return NextResponse.json(result.rows, {
+  const result = await query(
+    `SELECT date, hour, dispatches, volume, timestamp
+     FROM kpi_intraday
+     ${whereClause}
+     ORDER BY timestamp DESC
+     LIMIT $${params.length + 1}
+     OFFSET $${params.length + 2}`,
+    [...params, limit, offset]
+  )
+
+  return NextResponse.json(
+    {
+      rows: result.rows,
+      total: countResult.rows[0]?.total || 0,
+      limit,
+      offset,
+    },
+    {
     headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
-  })
+    }
+  )
 })

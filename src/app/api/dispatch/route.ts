@@ -9,13 +9,54 @@ export const GET = withRequestLogging("/api/dispatch", async (request: Request) 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const DEFAULT_FIELDS = [
+    "dispatch_id",
+    "cluster_name",
+    "station_name",
+    "region",
+    "status",
+    "actual_docked_time",
+    "actual_depart_time",
+    "processor_name",
+    "plate_number",
+    "created_at",
+    "status_updated_at",
+  ]
+  const ALLOWED_FIELDS = new Set([
+    ...DEFAULT_FIELDS,
+    "lh_trip_number",
+    "submitted_by_ops_id",
+    "assigned_data_team_ops_id",
+    "acknowledged_by_ops_id",
+    "acknowledged_at",
+    "confirmed_by_ops_id",
+    "confirmed_at",
+    "pending_edit_reason",
+    "edit_count",
+  ])
+  const DEFAULT_LIMIT = 20
+  const MAX_LIMIT = 200
+
   const { searchParams } = new URL(request.url)
   const status = searchParams.get("status")
   const region = searchParams.get("region")
   const startDate = searchParams.get("startDate")
   const endDate = searchParams.get("endDate")
-  const limit = Number(searchParams.get("limit") || "10")
-  const offset = Number(searchParams.get("offset") || "0")
+  const limitRaw = Number(searchParams.get("limit") || String(DEFAULT_LIMIT))
+  const offsetRaw = Number(searchParams.get("offset") || "0")
+  const limit = Number.isFinite(limitRaw)
+    ? Math.min(Math.max(limitRaw, 1), MAX_LIMIT)
+    : DEFAULT_LIMIT
+  const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0
+  const fieldsParam = searchParams.get("fields")
+  const requestedFields = fieldsParam
+    ? fieldsParam
+        .split(",")
+        .map((field) => field.trim())
+        .filter(Boolean)
+    : DEFAULT_FIELDS
+  const selectedFields = requestedFields.filter((field) => ALLOWED_FIELDS.has(field))
+  const selectClause = (selectedFields.length ? selectedFields : DEFAULT_FIELDS).join(", ")
 
   const filters: string[] = []
   const params: any[] = []
@@ -50,7 +91,7 @@ export const GET = withRequestLogging("/api/dispatch", async (request: Request) 
   )
 
   const rowsResult = await query(
-    `SELECT *
+    `SELECT ${selectClause}
      FROM dispatch_reports
      ${whereClause}
      ORDER BY created_at DESC
@@ -62,5 +103,7 @@ export const GET = withRequestLogging("/api/dispatch", async (request: Request) 
   return NextResponse.json({
     rows: rowsResult.rows,
     total: countResult.rows[0]?.total || 0,
+    limit,
+    offset,
   })
 })
