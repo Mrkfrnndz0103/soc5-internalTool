@@ -61,7 +61,7 @@ export function DispatchMonitoringPage() {
         total: rows.length,
         pending: rows.filter((d: DispatchEntry) => d.status === "Pending").length,
         ongoing: rows.filter((d: DispatchEntry) => d.status === "Ongoing").length,
-        completed: rows.filter((d: DispatchEntry) => d.status === "Completed" || d.status === "Verified").length,
+        completed: rows.filter((d: DispatchEntry) => d.status === "Completed" || d.status === "Confirmed" || d.status === "Verified").length,
       })
     }
   }
@@ -69,6 +69,7 @@ export function DispatchMonitoringPage() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "Completed":
+      case "Confirmed":
       case "Verified":
         return <CheckCircle className="h-4 w-4 text-green-500" />
       case "Ongoing":
@@ -81,6 +82,7 @@ export function DispatchMonitoringPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Completed":
+      case "Confirmed":
       case "Verified":
         return "bg-green-100 text-green-700 border-green-200"
       case "Ongoing":
@@ -123,7 +125,7 @@ export function DispatchMonitoringPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+          <CardTitle className="text-sm font-medium">Confirmed</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -170,7 +172,7 @@ export function DispatchMonitoringPage() {
                     <div>
                       <div className="font-medium">{dispatch.cluster_name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {dispatch.station_name} • {dispatch.processor_name}
+                        {dispatch.station_name} - {dispatch.processor_name}
                       </div>
                     </div>
                   </div>

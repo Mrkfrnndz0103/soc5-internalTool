@@ -328,6 +328,9 @@ export const POST = withRequestLogging("/api/sync/google-sheets", async (request
   }
 
   const secret = process.env.WEBHOOK_SECRET
+  if (!secret && process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Webhook secret is not configured" }, { status: 500 })
+  }
   const { searchParams } = new URL(request.url)
   const providedSecret = request.headers.get("x-webhook-secret") || searchParams.get("secret")
   if (secret && providedSecret !== secret) {

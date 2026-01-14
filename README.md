@@ -34,4 +34,4 @@ SOC5's outbound internal tool rebuilt as a full-stack Next.js application. The s
 - Data integration paths are defined in the API layer.
 - Feature expansion continues per the phased plan.
 
-Last Updated: 2026-01-09
+Last Updated: 2026-01-14

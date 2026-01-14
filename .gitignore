@@ -33,5 +33,3 @@ dist-ssr
 build
 .next
 
-# Local Netlify folder
-.netlify

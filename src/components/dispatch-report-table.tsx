@@ -713,7 +713,11 @@ export function DispatchReportTable() {
     const response = await dispatchApi.submitRows(payloadRows, submittedBy)
 
     if (response.error) {
-      const detailRows = Array.isArray(response.details?.rows) ? response.details.rows : []
+      const detailRows = Array.isArray(response.details?.results)
+        ? response.details.results
+        : Array.isArray(response.details?.rows)
+          ? response.details.rows
+          : []
       const errorResults: SubmitRowResult[] = detailRows.map((detail: any) => ({
         rowIndex:
           typeof detail.rowIndex === "number"

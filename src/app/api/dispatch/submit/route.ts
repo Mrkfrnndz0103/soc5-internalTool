@@ -17,9 +17,10 @@ const submitSchema = z
       .min(1, "rows are required")
       .max(MAX_ROWS, `rows must be <= ${MAX_ROWS}`),
     submitted_by_ops_id: z
-      .string({ required_error: "submitted_by_ops_id is required" })
+      .string()
       .trim()
-      .min(1, "submitted_by_ops_id is required"),
+      .min(1, "submitted_by_ops_id is required")
+      .optional(),
   })
   .strict()
 
@@ -70,6 +71,9 @@ export const POST = withRequestLogging("/api/dispatch/submit", async (request: R
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
+  if (!session.user.ops_id) {
+    return NextResponse.json({ error: "User ops_id is missing" }, { status: 403 })
+  }
 
   const rateLimit = await enforceSessionRateLimit(session.sessionId)
   if (!rateLimit.allowed) {
@@ -82,18 +86,24 @@ export const POST = withRequestLogging("/api/dispatch/submit", async (request: R
   const parsed = await parseRequestJson(request, submitSchema)
   if (parsed.errorResponse) return parsed.errorResponse
   const rows = parsed.data.rows
-  const submittedBy = parsed.data.submitted_by_ops_id
+  const submittedBy = session.user.ops_id
 
   const normalizedRows: Array<{
     clusterName: string
     stationName: string
     region: string
+    countOfTo: string
+    totalOidLoaded: number
+    dockNumber: string
+    dockConfirmed: boolean
     status: string
     lhTrip: string | null
     dockedTime: Date
     departTime: Date | null
     processor: string | null
     plate: string | null
+    fleetSize: string | null
+    assignedOpsId: string
   }> = []
   const validationErrors: Array<{ rowIndex: number; id?: string; errors: Record<string, string> }> = []
 
@@ -174,6 +184,7 @@ export const POST = withRequestLogging("/api/dispatch/submit", async (request: R
     }
 
     const processor = toTrimmedString(pickValue(row, ["processor_name", "processorName"]))
+    const fleetSize = toTrimmedString(pickValue(row, ["fleet_size", "fleetSize"]))
 
     if (Object.keys(rowErrors).length > 0) {
       validationErrors.push({ rowIndex: index, id: rowId, errors: rowErrors })
@@ -184,12 +195,18 @@ export const POST = withRequestLogging("/api/dispatch/submit", async (request: R
       clusterName,
       stationName,
       region,
+      countOfTo,
+      totalOidLoaded: totalOid as number,
+      dockNumber,
+      dockConfirmed: parseBoolean(dockConfirmedRaw),
       status,
       lhTrip: lhTrip || null,
       dockedTime: dockedTime as Date,
       departTime: departTime || null,
       processor: processor || null,
       plate: plate || null,
+      fleetSize: fleetSize || null,
+      assignedOpsId,
     })
   })
 
@@ -212,20 +229,26 @@ export const POST = withRequestLogging("/api/dispatch/submit", async (request: R
   const values: Array<string | Date | null> = []
   const rowValues = normalizedRows
     .map((row, rowIndex) => {
-      const base = rowIndex * 10
+      const base = rowIndex * 16
       values.push(
         row.clusterName,
         row.stationName,
         row.region,
+        row.countOfTo,
+        row.totalOidLoaded,
+        row.dockNumber,
+        row.dockConfirmed,
         row.status,
         row.lhTrip,
         row.dockedTime,
         row.departTime,
         row.processor,
         row.plate,
+        row.fleetSize,
+        row.assignedOpsId,
         submittedBy
       )
-      const placeholders = Array.from({ length: 10 }, (_, index) => `$${base + index + 1}`).join(", ")
+      const placeholders = Array.from({ length: 16 }, (_, index) => `$${base + index + 1}`).join(", ")
       return `(${placeholders}, NOW(), NOW())`
     })
     .join(", ")
@@ -233,7 +256,7 @@ export const POST = withRequestLogging("/api/dispatch/submit", async (request: R
   await withTransaction(async (client) => {
     await client.query(
       `INSERT INTO dispatch_reports
-       (cluster_name, station_name, region, status, lh_trip_number, actual_docked_time, actual_depart_time, processor_name, plate_number, submitted_by_ops_id, created_at, status_updated_at)
+       (cluster_name, station_name, region, count_of_to, total_oid_loaded, dock_number, dock_confirmed, status, lh_trip_number, actual_docked_time, actual_depart_time, processor_name, plate_number, fleet_size, assigned_ops_id, submitted_by_ops_id, created_at, status_updated_at)
        VALUES ${rowValues}`,
       values
     )

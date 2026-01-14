@@ -46,4 +46,4 @@ Server (definitive):
   - Retention default: 7 days.
   - Export draft to JSON if needed.
 
-Last Updated: 2026-01-09
+Last Updated: 2026-01-14

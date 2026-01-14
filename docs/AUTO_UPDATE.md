@@ -17,4 +17,4 @@ The documentation system supports automated updates during development.
 - Run `docs:watch` during active development.
 - Use `docs:update` before release.
 
-Last Updated: 2026-01-09
+Last Updated: 2026-01-14

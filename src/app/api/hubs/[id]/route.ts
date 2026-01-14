@@ -24,6 +24,10 @@ export const PATCH = withRequestLogging(
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const allowedRoles = new Set(["Admin", "Data Team"])
+    if (!allowedRoles.has(session.user.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
 
     const rateLimit = await enforceSessionRateLimit(session.sessionId)
     if (!rateLimit.allowed) {
@@ -63,6 +67,10 @@ export const DELETE = withRequestLogging(
     const session = await getSession()
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const allowedRoles = new Set(["Admin", "Data Team"])
+    if (!allowedRoles.has(session.user.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const result = await query(

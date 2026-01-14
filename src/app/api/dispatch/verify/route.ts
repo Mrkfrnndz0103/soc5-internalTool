@@ -10,9 +10,10 @@ const verifySchema = z
   .object({
     rows: z.array(z.string().min(1), { required_error: "rows are required" }).min(1, "rows are required"),
     verified_by_ops_id: z
-      .string({ required_error: "verified_by_ops_id is required" })
+      .string()
       .trim()
-      .min(1, "verified_by_ops_id is required"),
+      .min(1, "verified_by_ops_id is required")
+      .optional(),
     send_csv: z.boolean().optional(),
     send_mode: z.enum(["per_batch", "all"]).optional(),
   })
@@ -22,6 +23,13 @@ export const POST = withRequestLogging("/api/dispatch/verify", async (request: R
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  if (!session.user.ops_id) {
+    return NextResponse.json({ error: "User ops_id is missing" }, { status: 403 })
+  }
+  const allowedRoles = new Set(["Admin", "Data Team"])
+  if (!allowedRoles.has(session.user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   const rateLimit = await enforceSessionRateLimit(session.sessionId)
@@ -35,7 +43,7 @@ export const POST = withRequestLogging("/api/dispatch/verify", async (request: R
   const parsed = await parseRequestJson(request, verifySchema)
   if (parsed.errorResponse) return parsed.errorResponse
   const rows = parsed.data.rows
-  const verifiedBy = parsed.data.verified_by_ops_id
+  const verifiedBy = session.user.ops_id
 
   await query(
     `UPDATE dispatch_reports

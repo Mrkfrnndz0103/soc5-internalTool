@@ -24,8 +24,14 @@ export const GET = withRequestLogging("/api/dispatch", async (request: Request) 
   ]
   const ALLOWED_FIELDS = new Set([
     ...DEFAULT_FIELDS,
+    "count_of_to",
+    "total_oid_loaded",
+    "dock_number",
+    "dock_confirmed",
     "lh_trip_number",
     "submitted_by_ops_id",
+    "assigned_ops_id",
+    "fleet_size",
     "assigned_data_team_ops_id",
     "acknowledged_by_ops_id",
     "acknowledged_at",
