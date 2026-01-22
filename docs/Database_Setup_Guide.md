@@ -77,6 +77,20 @@ Notes:
 - Set `DATABASE_SSL=true` only if your provider requires SSL.
 - If using a hosted database, replace `localhost` with your provider host.
 
+## Prisma (Hybrid) Setup
+
+This project uses **Prisma Client** for all runtime DB access, while keeping the existing SQL migrations in `db/migrations` as the source of truth.
+
+Workflow:
+1) Apply SQL migrations (manual or `npm run db:migrate`).
+2) Keep `prisma/schema.prisma` aligned to the live schema (edit manually or run `npx prisma db pull`).
+3) Generate Prisma client:
+   ```bash
+   npm run prisma:generate
+   ```
+
+> Note: We intentionally do **not** use Prisma migrations in this codebase yet to avoid double‑tracking schema changes. If you switch to Prisma migrations later, remove the SQL migration runner and adopt `prisma migrate`.
+
 ## Schema Plan (Detailed)
 
 ### users
@@ -99,6 +113,12 @@ Note: headers for CSV import should be `ops_id,name,role,department,is_fte,email
 - actual_depart_time (timestamp)
 - processor_name (text)
 - plate_number (text)
+- count_of_to (text)
+- total_oid_loaded (integer)
+- dock_number (text)
+- dock_confirmed (boolean)
+- fleet_size (text)
+- assigned_ops_id (text)
 - submitted_by_ops_id (text)
 - assigned_data_team_ops_id (text)
 - acknowledged_by_ops_id (text)
@@ -214,4 +234,4 @@ psql -U soc5_app -h localhost -p 5432 soc5_outbound < backup.sql
 ### Permission denied
 - Ensure the user owns the database or has privileges.
 
-Last Updated: 2026-01-14
+Last Updated: 2026-01-22

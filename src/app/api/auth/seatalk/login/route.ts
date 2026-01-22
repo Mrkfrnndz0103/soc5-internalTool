@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { createSession, setSessionCookie } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
 import { parseRequestJson } from "@/lib/validation"
+import { getActiveAuthSession } from "@/server/repositories/auth-sessions"
+import { getAuthenticatedSeatalkSession, linkSeatalkAuthSession } from "@/server/repositories/seatalk-sessions"
+import { getUserByEmail } from "@/server/repositories/users"
+import { enforceIpRateLimit } from "@/server/ip-rate-limit"
+import { AUTH_RATE_LIMIT_MAX_REQUESTS, AUTH_RATE_LIMIT_WINDOW_MS } from "@/server/rate-limit-config"
 import { z } from "zod"
 
 const seatalkLoginSchema = z
@@ -22,6 +26,17 @@ function isAllowedDomain(email: string) {
 }
 
 export const POST = withRequestLogging("/api/auth/seatalk/login", async (request: Request) => {
+  const rateLimit = enforceIpRateLimit(request, "auth-seatalk-login", {
+    windowMs: AUTH_RATE_LIMIT_WINDOW_MS,
+    limit: AUTH_RATE_LIMIT_MAX_REQUESTS,
+  })
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    )
+  }
+
   if (process.env.NEXT_PUBLIC_SEATALK_ENABLED === "false") {
     return NextResponse.json({ error: "Seatalk login is disabled" }, { status: 410 })
   }
@@ -30,24 +45,12 @@ export const POST = withRequestLogging("/api/auth/seatalk/login", async (request
   if (parsed.errorResponse) return parsed.errorResponse
   const seatalkSessionId = parsed.data.session_id
 
-  const seatalkResult = await query<{
-    session_id: string
-    email: string | null
-    authenticated: boolean
-    auth_session_id: string | null
-  }>(
-    `SELECT session_id, email, authenticated, auth_session_id
-     FROM seatalk_sessions
-     WHERE session_id = $1 AND authenticated = true
-     LIMIT 1`,
-    [seatalkSessionId]
-  )
-
-  if (seatalkResult.rows.length === 0) {
+  const seatalkSession = await getAuthenticatedSeatalkSession(seatalkSessionId)
+  if (!seatalkSession) {
     return NextResponse.json({ error: "Seatalk session not authenticated" }, { status: 401 })
   }
 
-  const email = seatalkResult.rows[0].email
+  const email = seatalkSession.email
   if (!email) {
     return NextResponse.json({ error: "Seatalk email is missing" }, { status: 401 })
   }
@@ -56,44 +59,34 @@ export const POST = withRequestLogging("/api/auth/seatalk/login", async (request
     return NextResponse.json({ error: "Email domain is not allowed" }, { status: 403 })
   }
 
-  const userResult = await query(
-    `SELECT ops_id, name, role, email, department
-     FROM users
-     WHERE email = $1
-     LIMIT 1`,
-    [email]
-  )
-
-  if (userResult.rows.length === 0) {
+  const user = await getUserByEmail(email)
+  if (!user) {
     return NextResponse.json({ error: "User not provisioned" }, { status: 403 })
   }
 
-  let sessionId = seatalkResult.rows[0].auth_session_id
+  let sessionId = seatalkSession.authSessionId
   if (sessionId) {
-    const existingSession = await query(
-      `SELECT session_id
-       FROM auth_sessions
-       WHERE session_id = $1 AND expires_at > NOW()
-       LIMIT 1`,
-      [sessionId]
-    )
-    if (existingSession.rows.length === 0) {
+    const existingSession = await getActiveAuthSession(sessionId, new Date())
+    if (!existingSession) {
       sessionId = null
     }
   }
 
   if (!sessionId) {
-    const created = await createSession(userResult.rows[0].ops_id)
+    const created = await createSession(user.opsId)
     sessionId = created.sessionId
-    await query(
-      `UPDATE seatalk_sessions
-       SET auth_session_id = $1
-       WHERE session_id = $2`,
-      [sessionId, seatalkSessionId]
-    )
+    await linkSeatalkAuthSession(seatalkSessionId, sessionId)
   }
 
-  const response = NextResponse.json({ user: userResult.rows[0] })
+  const response = NextResponse.json({
+    user: {
+      ops_id: user.opsId,
+      name: user.name,
+      role: user.role,
+      email: user.email,
+      department: user.department,
+    },
+  })
   setSessionCookie(response, sessionId)
   return response
 })

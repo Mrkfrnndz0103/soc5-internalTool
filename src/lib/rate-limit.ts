@@ -1,5 +1,5 @@
 import "server-only"
-import { query } from "@/lib/db"
+import { getSessionRateLimit, incrementSessionRateLimit, resetSessionRateLimit } from "@/server/repositories/session-rate-limits"
 
 function parsePositiveNumber(value: string | undefined, fallback: number) {
   if (!value) return fallback
@@ -22,24 +22,23 @@ export async function enforceSessionRateLimit(
   const windowMs = options?.windowMs ?? DEFAULT_WINDOW_MS
   const limit = options?.limit ?? DEFAULT_MAX_REQUESTS
   const windowSeconds = Math.max(1, Math.floor(windowMs / 1000))
-  const intervalText = `${windowSeconds} seconds`
+  const expiresAt = new Date(Date.now() + windowSeconds * 1000)
+  const current = await getSessionRateLimit(sessionId)
+  let count = limit + 1
+  let currentExpiresAt = expiresAt
 
-  const result = await query<{ count: number; expires_at: Date }>(
-    `INSERT INTO session_rate_limits (session_id, count, expires_at)
-     VALUES ($1, 1, NOW() + $2::interval)
-     ON CONFLICT (session_id)
-     DO UPDATE SET
-       count = CASE WHEN session_rate_limits.expires_at < NOW() THEN 1 ELSE session_rate_limits.count + 1 END,
-       expires_at = CASE WHEN session_rate_limits.expires_at < NOW() THEN NOW() + $2::interval ELSE session_rate_limits.expires_at END
-     RETURNING count, expires_at`,
-    [sessionId, intervalText]
-  )
+  if (!current || current.expiresAt.getTime() < Date.now()) {
+    await resetSessionRateLimit(sessionId, expiresAt)
+    count = 1
+    currentExpiresAt = expiresAt
+  } else {
+    const updated = await incrementSessionRateLimit(sessionId)
+    count = updated.count
+    currentExpiresAt = updated.expiresAt
+  }
 
-  const row = result.rows[0]
-  const count = row?.count ?? limit + 1
   if (count > limit) {
-    const expiresAt = row?.expires_at ? new Date(row.expires_at).getTime() : Date.now() + windowMs
-    const retryAfterSeconds = Math.max(1, Math.ceil((expiresAt - Date.now()) / 1000))
+    const retryAfterSeconds = Math.max(1, Math.ceil((currentExpiresAt.getTime() - Date.now()) / 1000))
     return { allowed: false, retryAfterSeconds, limit }
   }
 

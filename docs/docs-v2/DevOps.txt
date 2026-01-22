@@ -1,0 +1,87 @@
+DevOps view focused on stability, speed, and zero-downtime
+Core DevOps Pillars (With Tools)
+
+1. Version Control (Mandatory)
+Tracks and protects code.
+
+Tool:
+    - Git (GitHub)
+Rules:
+    - No direct production changes
+    - Use branches
+    - Code review before merge
+
+2. CI (Continuous Integration)
+Catches bugs before deployment.
+
+Tools:
+    - GitHub Actions
+What runs automatically:
+    - Tests
+    - Linting
+    - Build checks
+This prevents broken code from reaching production.
+
+3. CD (Continuous Deployment)
+Deploy safely and repeatably.
+
+Tools:
+    - GitHub Actions (CI/CD)
+Best practices:
+    - Zero-downtime deployment
+    - Automatic rollback on failure
+
+4. Containers (Consistency)
+Ensures the app runs the same everywhere.
+
+Tools:
+    - Docker
+
+Benefits:
+    - Same environment locally and in production
+    - Easy scaling
+    - Resource isolation
+
+5. Infrastructure as Code (Stability)
+Servers are code, not manual work.
+
+Tools:
+    - Terraform
+Benefits:
+    - Reproducible infrastructure
+    - Easy recovery
+    - No configuration drift
+
+6. Performance & Load Handling
+Prevents lag under traffic.
+
+Tools:
+    - Nginx (reverse proxy)
+    - Load balancers
+    - Auto-scaling (cloud)
+
+7. Monitoring & Alerting
+Detect problems before users complain.
+
+Tools:
+    - Prometheus + Grafana
+Track:
+    - Response time
+    - Error rates
+    - CPU / memory
+    - Database performance
+
+8. Logging & Error Tracking
+Debug fast.
+
+Tools: 
+    - Sentry
+
+9. Security & Reliability
+Protect uptime.
+
+Tools:
+    - HTTPS (TLS)
+    - Secrets Manager
+    - Rate limiting
+    - Vulnerability scanning (Dependabot, Trivy)

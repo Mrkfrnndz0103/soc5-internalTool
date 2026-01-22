@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
+import { getUserByOpsId } from "@/server/repositories/users"
 
 export const GET = withRequestLogging(
   "/api/users/ops/[ops_id]",
@@ -11,18 +11,17 @@ export const GET = withRequestLogging(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const result = await query(
-      `SELECT ops_id, name, role, email, department
-       FROM users
-       WHERE ops_id = $1
-       LIMIT 1`,
-      [params.ops_id]
-    )
-
-    if (result.rows.length === 0) {
+    const user = await getUserByOpsId(params.ops_id)
+    if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    return NextResponse.json(result.rows[0])
+    return NextResponse.json({
+      ops_id: user.opsId,
+      name: user.name,
+      role: user.role,
+      email: user.email,
+      department: user.department,
+    })
   }
 )

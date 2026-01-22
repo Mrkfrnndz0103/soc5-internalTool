@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto"
 import { NextResponse } from "next/server"
 import { logger } from "@/lib/logger"
 import { captureException } from "@/lib/monitoring"
+import { recordRequest } from "@/server/metrics"
 
 type RequestContext = {
   route: string
@@ -69,6 +70,7 @@ export function withRequestLogging<TContext>(
         const dbMs = metrics?.dbMs || 0
         const dbQueries = metrics?.dbQueries || 0
         logger.info({ type: "api.request", route, method, status, ms, dbMs, dbQueries, requestId }, "api.request")
+        recordRequest(status)
 
         if (
           (Number.isFinite(requestBudgetMs) && ms > requestBudgetMs) ||

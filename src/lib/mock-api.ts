@@ -124,7 +124,7 @@ export const mockLookupApi = {
 }
 
 export const mockDispatchApi = {
-  async submitRows(rows: any[], _submitted_by_ops_id: string) {
+  async submitRows(rows: Record<string, unknown>[], _submitted_by_ops_id: string) {
     await delay()
 
     // Simulate validation and row creation
@@ -146,7 +146,7 @@ export const mockDispatchApi = {
     })
   },
 
-  async getDispatches(params: any) {
+  async getDispatches(params: { limit?: number; offset?: number } & Record<string, unknown>) {
     await delay()
 
     // Generate mock dispatch entries
@@ -167,7 +167,7 @@ export const mockDispatchApi = {
       plate_number: `ABC ${Math.floor(Math.random() * 9000) + 1000}`,
       fleet_size: ["4WH", "6W", "6WF", "10WH", "CV"][Math.floor(Math.random() * 5)],
       assigned_ops_id: mockData.users[i % mockData.users.length].ops_id,
-      status: ["Pending", "Ongoing", "Completed"][Math.floor(Math.random() * 3)],
+      status: ["Pending", "Ongoing", "Confirmed"][Math.floor(Math.random() * 3)],
       verified_flag: Math.random() > 0.5,
       verified_by: Math.random() > 0.5 ? "DATA001" : undefined,
       verified_at: Math.random() > 0.5 ? new Date().toISOString() : undefined,
@@ -186,7 +186,7 @@ export const mockDispatchApi = {
     })
   },
 
-  async verifyRows(data: any) {
+  async verifyRows(data: { rows: string[] }) {
     await delay()
     const results = data.rows.map((rowId: string) => ({
       batch_label: "1st",
@@ -200,7 +200,7 @@ export const mockDispatchApi = {
 }
 
 export const mockHubApi = {
-  async getHubs(_params?: any) {
+  async getHubs(_params?: Record<string, unknown>) {
     await delay()
     return mockResponse({
       total: mockData.hubs.length,
@@ -208,7 +208,7 @@ export const mockHubApi = {
     })
   },
 
-  async createHub(_hubData: any) {
+  async createHub(_hubData: Record<string, unknown>) {
     await delay()
     return mockResponse({
       hub_id: `hub-${Date.now()}`,
@@ -216,7 +216,7 @@ export const mockHubApi = {
     })
   },
 
-  async updateHub(hub_id: string, _hubData: any) {
+  async updateHub(hub_id: string, _hubData: Record<string, unknown>) {
     await delay()
     return mockResponse({
       hub_id,
@@ -233,7 +233,7 @@ export const mockHubApi = {
 }
 
 export const mockKpiApi = {
-  async getMDT(_params?: any) {
+  async getMDT(_params?: Record<string, unknown>) {
     await delay()
     // Mock KPI data from Google Sheets
     return mockResponse({
@@ -245,7 +245,7 @@ export const mockKpiApi = {
     })
   },
 
-  async getWorkstation(_params?: any) {
+  async getWorkstation(_params?: Record<string, unknown>) {
     await delay()
     return mockResponse({
       data: Array.from({ length: 20 }, (_, i) => ({
@@ -256,7 +256,7 @@ export const mockKpiApi = {
     })
   },
 
-  async getProductivity(_params?: any) {
+  async getProductivity(_params?: Record<string, unknown>) {
     await delay()
     return mockResponse({
       data: {

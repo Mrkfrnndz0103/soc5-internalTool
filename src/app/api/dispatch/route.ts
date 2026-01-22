@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
+import { DEFAULT_DISPATCH_FIELDS, DISPATCH_FIELD_MAP, type DispatchField, listDispatchReports } from "@/server/repositories/dispatch-reports"
 
 export const GET = withRequestLogging("/api/dispatch", async (request: Request) => {
   const session = await getSession()
@@ -9,21 +9,8 @@ export const GET = withRequestLogging("/api/dispatch", async (request: Request) 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const DEFAULT_FIELDS = [
-    "dispatch_id",
-    "cluster_name",
-    "station_name",
-    "region",
-    "status",
-    "actual_docked_time",
-    "actual_depart_time",
-    "processor_name",
-    "plate_number",
-    "created_at",
-    "status_updated_at",
-  ]
-  const ALLOWED_FIELDS = new Set([
-    ...DEFAULT_FIELDS,
+  const ALLOWED_FIELDS = new Set<DispatchField>([
+    ...DEFAULT_DISPATCH_FIELDS,
     "count_of_to",
     "total_oid_loaded",
     "dock_number",
@@ -59,56 +46,29 @@ export const GET = withRequestLogging("/api/dispatch", async (request: Request) 
     ? fieldsParam
         .split(",")
         .map((field) => field.trim())
-        .filter(Boolean)
-    : DEFAULT_FIELDS
+        .filter((field): field is DispatchField => Boolean(field) && field in DISPATCH_FIELD_MAP)
+    : [...DEFAULT_DISPATCH_FIELDS]
   const selectedFields = requestedFields.filter((field) => ALLOWED_FIELDS.has(field))
-  const selectClause = (selectedFields.length ? selectedFields : DEFAULT_FIELDS).join(", ")
 
-  const filters: string[] = []
-  const params: any[] = []
-
-  if (status) {
-    params.push(status)
-    filters.push(`status = $${params.length}`)
-  }
-
-  if (region) {
-    params.push(region)
-    filters.push(`region = $${params.length}`)
-  }
-
-  if (startDate) {
-    params.push(startDate)
-    filters.push(`created_at >= $${params.length}`)
-  }
-
-  if (endDate) {
-    params.push(endDate)
-    filters.push(`created_at <= $${params.length}`)
-  }
-
-  const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : ""
-
-  const countResult = await query(
-    `SELECT COUNT(*)::int AS total
-     FROM dispatch_reports
-     ${whereClause}`,
-    params
-  )
-
-  const rowsResult = await query(
-    `SELECT ${selectClause}
-     FROM dispatch_reports
-     ${whereClause}
-     ORDER BY created_at DESC
-     LIMIT $${params.length + 1}
-     OFFSET $${params.length + 2}`,
-    [...params, limit, offset]
+  const parsedStartDate = startDate ? new Date(startDate) : null
+  const parsedEndDate = endDate ? new Date(endDate) : null
+  const result = await listDispatchReports(
+    {
+      status: status ?? undefined,
+      region: region ?? undefined,
+      startDate: parsedStartDate && !Number.isNaN(parsedStartDate.getTime()) ? parsedStartDate : undefined,
+      endDate: parsedEndDate && !Number.isNaN(parsedEndDate.getTime()) ? parsedEndDate : undefined,
+    },
+    {
+      limit,
+      offset,
+      fields: selectedFields.length ? selectedFields : [...DEFAULT_DISPATCH_FIELDS],
+    }
   )
 
   return NextResponse.json({
-    rows: rowsResult.rows,
-    total: countResult.rows[0]?.total || 0,
+    rows: result.rows,
+    total: result.total,
     limit,
     offset,
   })

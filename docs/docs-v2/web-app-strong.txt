@@ -1,0 +1,80 @@
+## 1. Core Foundation
+- Clean code structure
+- Proper separation (frontend, backend, database)
+- Avoid doing heavy work on every request
+- Handle errors intentionally (not ignore them)
+
+---
+
+## 2. Backend Performance & Stability
+
+- **A. Web Server:** `Nginx` – very fast, handles traffic well
+- **B. Backend Runtime / Framework:** `Node.js` (with `Express` / `Fastify` / `NestJS`)
+- **C. Database Optimization:**
+  - `Prisma` (production-grade)
+  - Proper indexes
+  - Avoid unnecessary queries
+  - Optional speed boost: `Redis` (in-memory cache)
+
+---
+
+## 3. Caching (Critical for Speed)
+
+- `Redis` – server-side caching
+- Browser caching (via HTTP headers)
+- CDN caching
+
+---
+
+## 4. Frontend Speed
+
+*Frontend affects perceived speed.*
+
+- **Tools:**
+  - `React` / `Vue` / `Svelte` / `Next.js`
+  - `Vite` (fast builds)
+  - Code splitting
+  - Lazy loading
+- **Extra:**
+  - Compress images (WebP)
+  - Minify JS/CSS
+
+---
+
+## 5. Error Handling & Stability
+
+*No errors reaching users. This prevents crashes and silent failures.*
+
+- **Tools:**
+  - `Sentry` – catch runtime errors
+  - `Winston` / `Pino` – logging
+  - Proper `try/catch` everywhere
+
+---
+
+## 7. Monitoring & Health
+
+- **Tools:**
+  - `New Relic` / `Datadog` – performance monitoring
+  - `Prometheus` + `Grafana` – metrics
+  - Server monitoring (CPU, RAM)
+
+---
+
+## 8. Security (Indirect Stability)
+
+- **Tools:**
+  - HTTPS (SSL)
+  - Rate limiting
+  - Input validation
+  - Dependency scanning
+
+---
+
+## Summary: How to Achieve Speed and Stability
+
+- Good architecture
+- Caching
+- Optimized database usage
+- Proper monitoring
+- Scalable infrastructure

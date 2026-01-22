@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
+import { withCache } from "@/lib/server-cache"
+import { LOOKUP_CACHE_CONTROL, LOOKUP_CACHE_MS } from "@/lib/cache-control"
+import { listProcessors } from "@/server/repositories/users"
+
+type ProcessorLookupRow = {
+  name: string
+  opsId: string
+}
 
 export const GET = withRequestLogging("/api/lookup/processors", async (request: Request) => {
   const session = await getSession()
@@ -12,24 +19,11 @@ export const GET = withRequestLogging("/api/lookup/processors", async (request: 
   const { searchParams } = new URL(request.url)
   const queryText = searchParams.get("query")
 
-  const filters: string[] = ["role = 'Processor'"]
-  const params: string[] = []
+  const cacheKey = `lookup:processors:${queryText ?? "all"}`
+  const rows = await withCache(cacheKey, LOOKUP_CACHE_MS, async () => {
+    const result = (await listProcessors(queryText ?? undefined)) as ProcessorLookupRow[]
+    return result.map((row) => ({ name: row.name, ops_id: row.opsId }))
+  })
 
-  if (queryText) {
-    params.push(`%${queryText}%`)
-    filters.push(`name ILIKE $${params.length}`)
-  }
-
-  const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : ""
-
-  const result = await query(
-    `SELECT name, ops_id
-     FROM users
-     ${whereClause}
-     ORDER BY name
-     LIMIT 10`,
-    params
-  )
-
-  return NextResponse.json(result.rows)
+  return NextResponse.json(rows, { headers: { "Cache-Control": LOOKUP_CACHE_CONTROL } })
 })

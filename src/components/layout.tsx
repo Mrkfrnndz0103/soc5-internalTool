@@ -14,8 +14,10 @@ import { MessagesPopup } from "@/components/messages-popup"
 import { NotificationsPopup } from "@/components/notifications-popup"
 import { HelpPopup } from "@/components/help-popup"
 import { SettingsPopup } from "@/components/settings-popup"
+import { PlaceholderPage } from "@/components/placeholder-page"
 import { useAuth } from "@/contexts/auth-context"
 import { LoginModal } from "@/screens/login"
+import { getModuleForPath, isModuleEnabled, MODULE_LABELS } from "@/lib/module-flags"
 
 const pageTitle: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -52,6 +54,9 @@ export function Layout({ children }: LayoutProps) {
   const [minimizedPopups, setMinimizedPopups] = useState<Set<SidebarPopupType>>(new Set())
   const pathname = usePathname()
   const [lastPath, setLastPath] = useState(pathname)
+  const moduleKey = getModuleForPath(pathname)
+  const moduleDisabled = moduleKey ? !isModuleEnabled(moduleKey) : false
+  const moduleLabel = moduleKey ? MODULE_LABELS[moduleKey] : "Module"
 
   const handlePopupChange = (popup: SidebarPopupType) => {
     if (activePopup === popup) {
@@ -115,7 +120,9 @@ export function Layout({ children }: LayoutProps) {
     return () => window.removeEventListener('keydown', handleKeyPress)
   }, [handleKeyPress])
 
-  const currentPageTitle = (pathname && pageTitle[pathname]) || "Outbound Tool"
+  const currentPageTitle = moduleDisabled
+    ? `${moduleLabel} Disabled`
+    : (pathname && pageTitle[pathname]) || "Outbound Tool"
 
   const handleSidebarClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement
@@ -243,7 +250,16 @@ export function Layout({ children }: LayoutProps) {
                 <span className="text-foreground font-semibold">{currentPageTitle}</span>
               </div>
             </div>
-            <AnimatedPage>{children}</AnimatedPage>
+            <AnimatedPage>
+              {moduleDisabled ? (
+                <PlaceholderPage
+                  title={`${moduleLabel} Disabled`}
+                  description="This module is currently turned off. Contact an administrator to enable access."
+                />
+              ) : (
+                children
+              )}
+            </AnimatedPage>
           </div>
         </div>
       </div>

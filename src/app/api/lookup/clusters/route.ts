@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
+import { withCache } from "@/lib/server-cache"
+import { LOOKUP_CACHE_CONTROL, LOOKUP_CACHE_MS } from "@/lib/cache-control"
+import { listClusters } from "@/server/repositories/outbound-map"
+
+type ClusterLookupRow = {
+  clusterName: string | null
+  region: string | null
+}
 
 export const GET = withRequestLogging("/api/lookup/clusters", async (request: Request) => {
   const session = await getSession()
@@ -13,28 +20,17 @@ export const GET = withRequestLogging("/api/lookup/clusters", async (request: Re
   const region = searchParams.get("region")
   const queryText = searchParams.get("query")
 
-  const filters: string[] = ["active = true"]
-  const params: string[] = []
+  const cacheKey = `lookup:clusters:${region ?? "all"}:${queryText ?? ""}`
+  const rows = await withCache(cacheKey, LOOKUP_CACHE_MS, async () => {
+    const result = (await listClusters({
+      region: region ?? undefined,
+      query: queryText ?? undefined,
+    })) as ClusterLookupRow[]
+    return result.map((row) => ({
+      cluster_name: row.clusterName,
+      region: row.region,
+    }))
+  })
 
-  if (region) {
-    params.push(region)
-    filters.push(`region = $${params.length}`)
-  }
-
-  if (queryText) {
-    params.push(`%${queryText}%`)
-    filters.push(`cluster_name ILIKE $${params.length}`)
-  }
-
-  const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : ""
-
-  const result = await query(
-    `SELECT DISTINCT cluster_name, region
-     FROM outbound_map
-     ${whereClause}
-     ORDER BY cluster_name`,
-    params
-  )
-
-  return NextResponse.json(result.rows)
+  return NextResponse.json(rows, { headers: { "Cache-Control": LOOKUP_CACHE_CONTROL } })
 })

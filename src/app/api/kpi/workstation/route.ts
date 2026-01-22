@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
+import { withCache } from "@/lib/server-cache"
+import { KPI_CACHE_CONTROL, KPI_CACHE_MS } from "@/lib/cache-control"
+import { listKpiWorkstation } from "@/server/repositories/kpi"
+
+type WorkstationRow = {
+  date: Date | null
+  workstation: string | null
+  utilization: unknown
+  efficiency: unknown
+}
 
 export const GET = withRequestLogging("/api/kpi/workstation", async (request: Request) => {
   const session = await getSession()
@@ -22,47 +31,21 @@ export const GET = withRequestLogging("/api/kpi/workstation", async (request: Re
     : DEFAULT_LIMIT
   const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0
 
-  const filters: string[] = []
-  const params: string[] = []
-
-  if (startDate) {
-    params.push(startDate)
-    filters.push(`date >= $${params.length}`)
-  }
-
-  if (endDate) {
-    params.push(endDate)
-    filters.push(`date <= $${params.length}`)
-  }
-
-  const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : ""
-
-  const countResult = await query(
-    `SELECT COUNT(*)::int AS total
-     FROM kpi_workstation
-     ${whereClause}`,
-    params
-  )
-
-  const result = await query(
-    `SELECT date, workstation, utilization, efficiency
-     FROM kpi_workstation
-     ${whereClause}
-     ORDER BY date DESC
-     LIMIT $${params.length + 1}
-     OFFSET $${params.length + 2}`,
-    [...params, limit, offset]
-  )
-
-  return NextResponse.json(
-    {
-      rows: result.rows,
-      total: countResult.rows[0]?.total || 0,
+  const cacheKey = `kpi:workstation:${startDate ?? "all"}:${endDate ?? "all"}:${limit}:${offset}`
+  const payload = await withCache(cacheKey, KPI_CACHE_MS, async () => {
+    const result = await listKpiWorkstation({ startDate, endDate, limit, offset })
+    return {
+      rows: (result.rows as WorkstationRow[]).map((row) => ({
+        date: row.date,
+        workstation: row.workstation,
+        utilization: row.utilization === null ? null : Number(row.utilization),
+        efficiency: row.efficiency === null ? null : Number(row.efficiency),
+      })),
+      total: result.total,
       limit,
       offset,
-    },
-    {
-    headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
     }
-  )
+  })
+
+  return NextResponse.json(payload, { headers: { "Cache-Control": KPI_CACHE_CONTROL } })
 })

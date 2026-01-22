@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
+import { withCache } from "@/lib/server-cache"
+import { LOOKUP_CACHE_CONTROL, LOOKUP_CACHE_MS } from "@/lib/cache-control"
+import { listHubLookups } from "@/server/repositories/outbound-map"
+
+type HubLookupRow = {
+  hubName: string | null
+  dockNumber: string | null
+}
 
 export const GET = withRequestLogging("/api/lookup/hubs", async (request: Request) => {
   const session = await getSession()
@@ -12,23 +19,14 @@ export const GET = withRequestLogging("/api/lookup/hubs", async (request: Reques
   const { searchParams } = new URL(request.url)
   const cluster = searchParams.get("cluster")
 
-  const filters: string[] = ["active = true"]
-  const params: string[] = []
+  const cacheKey = `lookup:hubs:${cluster ?? "all"}`
+  const rows = await withCache(cacheKey, LOOKUP_CACHE_MS, async () => {
+    const result = (await listHubLookups({ cluster: cluster ?? undefined })) as HubLookupRow[]
+    return result.map((row) => ({
+      hub_name: row.hubName,
+      dock_number: row.dockNumber,
+    }))
+  })
 
-  if (cluster) {
-    params.push(cluster)
-    filters.push(`cluster_name = $${params.length}`)
-  }
-
-  const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : ""
-
-  const result = await query(
-    `SELECT hub_name, dock_number
-     FROM outbound_map
-     ${whereClause}
-     ORDER BY hub_name`,
-    params
-  )
-
-  return NextResponse.json(result.rows)
+  return NextResponse.json(rows, { headers: { "Cache-Control": LOOKUP_CACHE_CONTROL } })
 })

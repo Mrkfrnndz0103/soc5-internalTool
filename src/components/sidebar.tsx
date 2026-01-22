@@ -8,6 +8,7 @@ import { ChevronRight, LayoutDashboard, Package, TrendingUp, Truck, Bell, HelpCi
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { SpxLogo } from "@/components/spx-logo"
+import { isModuleEnabled, type ModuleKey } from "@/lib/module-flags"
 
 export type SidebarPopupType = "chat" | "messages" | "notifications" | "help" | "settings" | null
 
@@ -22,6 +23,7 @@ interface MenuItem {
   title: string
   path: string
   icon: React.ReactNode
+  moduleKey: ModuleKey
   subItems?: SubMenuItem[]
 }
 
@@ -30,11 +32,13 @@ const menuItems: MenuItem[] = [
     title: "Dashboard",
     path: "/dashboard",
     icon: <LayoutDashboard className="h-5 w-5" />,
+    moduleKey: "dashboard",
   },
   {
     title: "Outbound",
     path: "/outbound",
     icon: <Package className="h-5 w-5" />,
+    moduleKey: "outbound",
     subItems: [
       { title: "Dispatch Monitoring", path: "/outbound/dispatch-monitoring", icon: <Eye className="h-4 w-4" /> },
       { title: "Dispatch Report", path: "/outbound/dispatch-report", icon: <FileText className="h-4 w-4" /> },
@@ -46,6 +50,7 @@ const menuItems: MenuItem[] = [
     title: "Data Team",
     path: "/data-team",
     icon: <Database className="h-5 w-5" />,
+    moduleKey: "data-team",
     subItems: [
       { title: "Prealert", path: "/data-team/prealert", icon: <AlertCircle className="h-4 w-4" /> },
       { title: "SOCPacked Update", path: "/data-team/socpacked-update", icon: <CheckCircle className="h-4 w-4" /> },
@@ -65,6 +70,7 @@ const menuItems: MenuItem[] = [
     title: "Admin",
     path: "/admin",
     icon: <Briefcase className="h-5 w-5" />,
+    moduleKey: "admin",
     subItems: [
       { title: "Attendance", path: "/admin/attendance", icon: <Users className="h-4 w-4" /> },
       { title: "Masterfile", path: "/admin/masterfile", icon: <FileText className="h-4 w-4" /> },
@@ -78,6 +84,7 @@ const menuItems: MenuItem[] = [
     title: "KPI & Compliance",
     path: "/kpi",
     icon: <TrendingUp className="h-5 w-5" />,
+    moduleKey: "kpi",
     subItems: [
       { title: "MDT", path: "/kpi/mdt", icon: <BarChart3 className="h-4 w-4" /> },
       { title: "Workstation", path: "/kpi/workstation", icon: <Briefcase className="h-4 w-4" /> },
@@ -89,6 +96,7 @@ const menuItems: MenuItem[] = [
     title: "Midmile",
     path: "/midmile",
     icon: <Truck className="h-5 w-5" />,
+    moduleKey: "midmile",
     subItems: [
       { title: "Truck Request", path: "/midmile/truck-request", icon: <MapPin className="h-4 w-4" /> },
     ],
@@ -230,7 +238,7 @@ export function Sidebar({ isCollapsed, onToggle: _onToggle, activePopup, onPopup
       </div>
 
       <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto">
-        {menuItems.map((item) => (
+        {menuItems.filter((item) => isModuleEnabled(item.moduleKey)).map((item) => (
           <NavItem
             key={item.path}
             item={item}

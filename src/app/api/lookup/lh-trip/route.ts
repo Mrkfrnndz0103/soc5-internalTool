@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
+import { withCache } from "@/lib/server-cache"
+import { LH_TRIP_CACHE_CONTROL, LH_TRIP_CACHE_MS } from "@/lib/cache-control"
+import { getLhTripSummary } from "@/server/repositories/dispatch-google-sheet"
 
 export const GET = withRequestLogging("/api/lookup/lh-trip", async (request: Request) => {
   const session = await getSession()
@@ -17,31 +19,10 @@ export const GET = withRequestLogging("/api/lookup/lh-trip", async (request: Req
     return NextResponse.json({ error: "lhTrip is required" }, { status: 400 })
   }
 
-  const result = await query(
-    `SELECT
-       trip_number AS lh_trip_number,
-       NULL::text AS cluster_name,
-       MAX(to_dest_station_name) AS station_name,
-       NULL::text AS region,
-       NULLIF(
-         STRING_AGG(DISTINCT to_number, ', ') FILTER (WHERE to_number IS NOT NULL),
-         ''
-       ) AS count_of_to,
-       COALESCE(SUM(to_parcel_quantity), 0)::int AS total_oid_loaded,
-       NULL::timestamptz AS actual_docked_time,
-       NULL::text AS dock_number,
-       MAX(departure_timestamp) AS actual_depart_time,
-       NULL::text AS processor_name,
-       MAX(vehicle_number) AS plate_number,
-       MAX(truck_size) AS fleet_size,
-       NULL::text AS assigned_ops_id,
-       MAX(dispatch_date) AS source_updated_at,
-       MAX(updated_at) AS updated_at
-     FROM dispatch_google_sheet_rows
-     WHERE trip_number = $1
-     GROUP BY trip_number`,
-    [lhTrip]
-  )
+  const cacheKey = `lookup:lh-trip:${lhTrip}`
+  const row = await withCache(cacheKey, LH_TRIP_CACHE_MS, async () => {
+    return getLhTripSummary(lhTrip)
+  })
 
-  return NextResponse.json({ row: result.rows[0] || null })
+  return NextResponse.json({ row }, { headers: { "Cache-Control": LH_TRIP_CACHE_CONTROL } })
 })

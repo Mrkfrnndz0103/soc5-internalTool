@@ -1,7 +1,7 @@
 export type AuthUser = {
   ops_id?: string
   name: string
-  role: "FTE" | "Backroom" | "Data Team" | "Admin"
+  role: "FTE" | "Backroom" | "Data Team" | "Admin" | "Processor"
   email?: string
   department?: string
 }
@@ -10,7 +10,7 @@ export type AuthSessionResponse = {
   user: AuthUser
 }
 
-type ApiResult<T> = { data?: T; error?: string; status?: number; details?: any }
+type ApiResult<T> = { data?: T; error?: string; status?: number; details?: unknown }
 export type ListResponse<T> = {
   total: number
   limit: number
@@ -32,6 +32,8 @@ export type DispatchSubmitResponse = {
   }>
   error?: string
 }
+
+export type DispatchSubmitRow = Record<string, unknown>
 
 export type LhTripLookupRow = {
   lh_trip_number: string
@@ -172,7 +174,7 @@ export const lookupApi = {
 
 // Dispatch Report APIs
 export const dispatchApi = {
-  async submitRows(rows: any[], submitted_by_ops_id: string) {
+  async submitRows(rows: DispatchSubmitRow[], submitted_by_ops_id: string) {
     return request<DispatchSubmitResponse>("/api/dispatch/submit", {
       method: "POST",
       body: JSON.stringify({ rows, submitted_by_ops_id }),
@@ -219,14 +221,14 @@ export const hubApi = {
     return request(`/api/hubs${buildQuery(params || {})}`, { method: "GET" })
   },
 
-  async createHub(hubData: any) {
+  async createHub(hubData: Record<string, unknown>) {
     return request("/api/hubs", {
       method: "POST",
       body: JSON.stringify(hubData),
     })
   },
 
-  async updateHub(hub_id: string, hubData: any) {
+  async updateHub(hub_id: string, hubData: Record<string, unknown>) {
     return request(`/api/hubs/${encodeURIComponent(hub_id)}`, {
       method: "PATCH",
       body: JSON.stringify(hubData),

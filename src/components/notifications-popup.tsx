@@ -23,8 +23,8 @@ const getMockNotifications = (): Notification[] => [
   {
     id: "1",
     type: "dispatch",
-    title: "Dispatch Completed",
-    message: "Bay 5 dispatch for Route A-123 has been completed successfully.",
+    title: "Dispatch Confirmed",
+    message: "Bay 5 dispatch for Route A-123 has been confirmed successfully.",
     timestamp: new Date(Date.now() - 300000),
     isRead: false,
   },

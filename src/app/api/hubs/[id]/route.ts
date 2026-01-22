@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
 import { enforceSessionRateLimit } from "@/lib/rate-limit"
 import { parseRequestJson } from "@/lib/validation"
+import { invalidateCache } from "@/lib/server-cache"
+import { deactivateHub, updateHub } from "@/server/repositories/outbound-map"
 import { z } from "zod"
 
 const hubUpdateSchema = z
@@ -39,25 +40,23 @@ export const PATCH = withRequestLogging(
 
     const parsed = await parseRequestJson(request, hubUpdateSchema)
     if (parsed.errorResponse) return parsed.errorResponse
-    const entries = Object.entries(parsed.data)
+    const { cluster_name, hub_name, region, dock_number, active } = parsed.data
+    const result = await updateHub(params.id, {
+      clusterName: cluster_name ?? null,
+      hubName: hub_name ?? null,
+      region: region ?? null,
+      dockNumber: dock_number ?? null,
+      active,
+    })
 
-    const assignments = entries.map(([key], index) => `"${key}" = $${index + 1}`).join(", ")
-    const values = entries.map(([, value]) => value)
-    values.push(params.id)
-
-    const result = await query(
-      `UPDATE outbound_map
-       SET ${assignments}
-       WHERE id = $${values.length}
-       RETURNING *`,
-      values
-    )
-
-    if (result.rows.length === 0) {
+    if (!result) {
       return NextResponse.json({ error: "Hub not found" }, { status: 404 })
     }
 
-    return NextResponse.json(result.rows[0])
+    invalidateCache("hubs:")
+    invalidateCache("lookup:")
+
+    return NextResponse.json(result)
   }
 )
 
@@ -73,18 +72,14 @@ export const DELETE = withRequestLogging(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const result = await query(
-      `UPDATE outbound_map
-       SET active = false
-       WHERE id = $1
-       RETURNING *`,
-      [params.id]
-    )
-
-    if (result.rows.length === 0) {
+    const result = await deactivateHub(params.id)
+    if (!result) {
       return NextResponse.json({ error: "Hub not found" }, { status: 404 })
     }
 
-    return NextResponse.json(result.rows[0])
+    invalidateCache("hubs:")
+    invalidateCache("lookup:")
+
+    return NextResponse.json(result)
   }
 )

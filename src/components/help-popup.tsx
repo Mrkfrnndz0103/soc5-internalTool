@@ -53,7 +53,7 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     id: "5",
     question: "What do the different status colors mean?",
-    answer: "Green = Completed, Yellow = In Progress, Red = Delayed/Issue, Blue = Pending, Gray = Not Started.",
+    answer: "Green = Confirmed, Yellow = In Progress, Red = Delayed/Issue, Blue = Pending, Gray = Not Started.",
     category: "General",
   },
   {

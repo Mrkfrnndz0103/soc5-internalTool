@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server"
 import { createHash } from "crypto"
-import { query } from "@/lib/db"
 import { withRequestLogging } from "@/lib/request-context"
 import { parseRequestJson } from "@/lib/validation"
+import { invalidateCache } from "@/lib/server-cache"
+import { upsertDispatchSheetRows } from "@/server/repositories/dispatch-google-sheet"
+import { enforceIpRateLimit } from "@/server/ip-rate-limit"
+import { WEBHOOK_RATE_LIMIT_MAX_REQUESTS, WEBHOOK_RATE_LIMIT_WINDOW_MS } from "@/server/rate-limit-config"
+import type { JsonValue } from "@/lib/json-types"
 import { z } from "zod"
 
 type RawRow = Record<string, unknown>
@@ -28,8 +32,8 @@ type SheetRow = {
 
 const syncPayloadSchema = z
   .object({
-    rows: z.array(z.any()).optional(),
-    headers: z.array(z.any()).optional(),
+    rows: z.array(z.unknown()).optional(),
+    headers: z.array(z.unknown()).optional(),
   })
   .passthrough()
 
@@ -49,58 +53,7 @@ const HEADER_ALIASES: Record<string, string> = {
   drivername: "driver_name",
 }
 
-const BATCH_SIZE = 500
 const FETCH_TIMEOUT_MS = 15000
-const UPSERT_COLUMNS = [
-  "row_key",
-  "dispatch_date",
-  "origin",
-  "to_dest_station_name",
-  "trip_number",
-  "to_number",
-  "to_parcel_quantity",
-  "loaded_timestamp",
-  "operator_raw",
-  "operator_ops_id",
-  "operator_name",
-  "departure_timestamp",
-  "truck_size",
-  "vehicle_number",
-  "driver_name",
-  "raw_payload",
-] as const
-
-function buildUpsertSql(rowCount: number) {
-  const columnList = UPSERT_COLUMNS.join(", ")
-  const placeholders = Array.from({ length: rowCount }, (_, rowIndex) => {
-    const base = rowIndex * UPSERT_COLUMNS.length
-    const fields = UPSERT_COLUMNS.map((_, index) => `$${base + index + 1}`).join(", ")
-    return `(${fields}, NOW())`
-  }).join(", ")
-
-  return `
-    INSERT INTO dispatch_google_sheet_rows
-    (${columnList}, updated_at)
-    VALUES ${placeholders}
-    ON CONFLICT (row_key) DO UPDATE SET
-      dispatch_date = EXCLUDED.dispatch_date,
-      origin = EXCLUDED.origin,
-      to_dest_station_name = EXCLUDED.to_dest_station_name,
-      trip_number = EXCLUDED.trip_number,
-      to_number = EXCLUDED.to_number,
-      to_parcel_quantity = EXCLUDED.to_parcel_quantity,
-      loaded_timestamp = EXCLUDED.loaded_timestamp,
-      operator_raw = EXCLUDED.operator_raw,
-      operator_ops_id = COALESCE(EXCLUDED.operator_ops_id, dispatch_google_sheet_rows.operator_ops_id),
-      operator_name = COALESCE(EXCLUDED.operator_name, dispatch_google_sheet_rows.operator_name),
-      departure_timestamp = EXCLUDED.departure_timestamp,
-      truck_size = EXCLUDED.truck_size,
-      vehicle_number = EXCLUDED.vehicle_number,
-      driver_name = EXCLUDED.driver_name,
-      raw_payload = EXCLUDED.raw_payload,
-      updated_at = NOW();
-  `
-}
 
 function normalizeHeader(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "")
@@ -109,6 +62,10 @@ function normalizeHeader(value: string) {
 function toStringValue(value: unknown) {
   if (value === null || value === undefined) return ""
   return String(value).trim()
+}
+
+function toJsonValue(value: unknown): JsonValue {
+  return JSON.parse(JSON.stringify(value)) as JsonValue
 }
 
 function parseInteger(value?: string) {
@@ -264,15 +221,17 @@ async function fetchSheetRows(): Promise<RawRow[]> {
     })
 }
 
-function rowsFromBody(body: any): RawRow[] | null {
-  if (!body || !Array.isArray(body.rows)) return null
-  const rows = body.rows as unknown[]
+function rowsFromBody(body: unknown): RawRow[] | null {
+  if (!body || typeof body !== "object") return null
+  const record = body as { rows?: unknown; headers?: unknown }
+  if (!Array.isArray(record.rows)) return null
+  const rows = record.rows as unknown[]
   if (rows.length === 0) return []
 
   if (Array.isArray(rows[0])) {
-    const headerSource = Array.isArray(body.headers) ? body.headers : (rows[0] as unknown[])
+    const headerSource = Array.isArray(record.headers) ? record.headers : (rows[0] as unknown[])
     const headers: string[] = headerSource.map((header: unknown) => toStringValue(header))
-    const dataRows = Array.isArray(body.headers) ? rows : rows.slice(1)
+    const dataRows = Array.isArray(record.headers) ? rows : rows.slice(1)
     return dataRows
       .filter((row) => Array.isArray(row))
       .map((row) => {
@@ -293,36 +252,40 @@ function rowsFromBody(body: any): RawRow[] | null {
 }
 
 async function upsertSheetRows(rows: SheetRow[]) {
-  for (let start = 0; start < rows.length; start += BATCH_SIZE) {
-    const chunk = rows.slice(start, start + BATCH_SIZE)
-    const values: Array<string | number | Date | null> = []
-
-    chunk.forEach((row) => {
-      values.push(
-        row.rowKey,
-        row.dispatchDate ?? null,
-        row.origin ?? null,
-        row.toDestStationName ?? null,
-        row.tripNumber,
-        row.toNumber ?? null,
-        row.toParcelQuantity ?? null,
-        row.loadedTimestamp ?? null,
-        row.operatorRaw ?? null,
-        row.operatorOpsId ?? null,
-        row.operatorName ?? null,
-        row.departureTimestamp ?? null,
-        row.truckSize ?? null,
-        row.vehicleNumber ?? null,
-        row.driverName ?? null,
-        JSON.stringify(row.rawPayload)
-      )
-    })
-
-    await query(buildUpsertSql(chunk.length), values)
-  }
+  return upsertDispatchSheetRows(
+    rows.map((row) => ({
+      rowKey: row.rowKey,
+      dispatchDate: row.dispatchDate ?? null,
+      origin: row.origin ?? null,
+      toDestStationName: row.toDestStationName ?? null,
+      tripNumber: row.tripNumber,
+      toNumber: row.toNumber ?? null,
+      toParcelQuantity: row.toParcelQuantity ?? null,
+      loadedTimestamp: row.loadedTimestamp ?? null,
+      operatorRaw: row.operatorRaw ?? null,
+      operatorOpsId: row.operatorOpsId ?? null,
+      operatorName: row.operatorName ?? null,
+      departureTimestamp: row.departureTimestamp ?? null,
+      truckSize: row.truckSize ?? null,
+      vehicleNumber: row.vehicleNumber ?? null,
+      driverName: row.driverName ?? null,
+      rawPayload: toJsonValue(row.rawPayload),
+    }))
+  )
 }
 
 export const POST = withRequestLogging("/api/sync/google-sheets", async (request: Request) => {
+  const rateLimit = enforceIpRateLimit(request, "webhook-google-sheets", {
+    windowMs: WEBHOOK_RATE_LIMIT_WINDOW_MS,
+    limit: WEBHOOK_RATE_LIMIT_MAX_REQUESTS,
+  })
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    )
+  }
+
   if (process.env.FEATURE_GOOGLE_SHEETS_SYNC === "false") {
     return NextResponse.json({ error: "Google Sheets sync is disabled" }, { status: 403 })
   }
@@ -360,6 +323,7 @@ export const POST = withRequestLogging("/api/sync/google-sheets", async (request
   }
 
   await upsertSheetRows(sheetRows)
+  invalidateCache("lookup:lh-trip:")
 
   return NextResponse.json({
     synced: sheetRows.length,

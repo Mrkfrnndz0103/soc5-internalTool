@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { withRequestLogging } from "@/lib/request-context"
+import { getAuthenticatedSeatalkSession } from "@/server/repositories/seatalk-sessions"
+import { enforceIpRateLimit } from "@/server/ip-rate-limit"
+import { AUTH_RATE_LIMIT_MAX_REQUESTS, AUTH_RATE_LIMIT_WINDOW_MS } from "@/server/rate-limit-config"
 
 export const GET = withRequestLogging("/api/auth/seatalk/check", async (request: Request) => {
+  const rateLimit = enforceIpRateLimit(request, "auth-seatalk-check", {
+    windowMs: AUTH_RATE_LIMIT_WINDOW_MS,
+    limit: AUTH_RATE_LIMIT_MAX_REQUESTS,
+  })
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    )
+  }
+
   if (process.env.NEXT_PUBLIC_SEATALK_ENABLED === "false") {
     return NextResponse.json({ error: "Seatalk login is disabled" }, { status: 410 })
   }
@@ -14,20 +27,13 @@ export const GET = withRequestLogging("/api/auth/seatalk/check", async (request:
     return NextResponse.json({ error: "session_id is required" }, { status: 400 })
   }
 
-  const result = await query(
-    `SELECT email, authenticated
-     FROM seatalk_sessions
-     WHERE session_id = $1 AND authenticated = true
-     LIMIT 1`,
-    [sessionId]
-  )
-
-  if (result.rows.length === 0) {
+  const session = await getAuthenticatedSeatalkSession(sessionId)
+  if (!session) {
     return NextResponse.json(null)
   }
 
   return NextResponse.json({
-    email: result.rows[0].email,
-    authenticated: result.rows[0].authenticated,
+    email: session.email,
+    authenticated: session.authenticated,
   })
 })

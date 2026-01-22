@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
 import { enforceSessionRateLimit } from "@/lib/rate-limit"
 import { parseRequestJson } from "@/lib/validation"
+import { withCache, invalidateCache } from "@/lib/server-cache"
+import { HUB_CACHE_CONTROL, HUB_CACHE_MS } from "@/lib/cache-control"
+import { createHub, listHubs } from "@/server/repositories/outbound-map"
 import { z } from "zod"
 
 const hubPayloadSchema = z
@@ -29,37 +31,13 @@ export const GET = withRequestLogging("/api/hubs", async (request: Request) => {
   const activeParam = searchParams.get("active")
   const active = activeParam === null ? undefined : activeParam === "true"
 
-  const filters: string[] = []
-  const params: any[] = []
+  const cacheKey = `hubs:${active ?? "all"}:${limit}:${offset}`
+  const payload = await withCache(cacheKey, HUB_CACHE_MS, async () => {
+    const result = await listHubs({ active, limit, offset })
+    return { hubs: result.rows, total: result.total }
+  })
 
-  if (active !== undefined) {
-    params.push(active)
-    filters.push(`active = $${params.length}`)
-  }
-
-  const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : ""
-
-  const countResult = await query(
-    `SELECT COUNT(*)::int AS total
-     FROM outbound_map
-     ${whereClause}`,
-    params
-  )
-
-  const rowsResult = await query(
-    `SELECT *
-     FROM outbound_map
-     ${whereClause}
-     ORDER BY hub_name
-     LIMIT $${params.length + 1}
-     OFFSET $${params.length + 2}`,
-    [...params, limit, offset]
-  )
-
-  return NextResponse.json(
-    { hubs: rowsResult.rows, total: countResult.rows[0]?.total || 0 },
-    { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" } }
-  )
+  return NextResponse.json(payload, { headers: { "Cache-Control": HUB_CACHE_CONTROL } })
 })
 
 export const POST = withRequestLogging("/api/hubs", async (request: Request) => {
@@ -82,18 +60,17 @@ export const POST = withRequestLogging("/api/hubs", async (request: Request) => 
 
   const parsed = await parseRequestJson(request, hubPayloadSchema)
   if (parsed.errorResponse) return parsed.errorResponse
-  const entries = Object.entries(parsed.data)
+  const { cluster_name, hub_name, region, dock_number, active } = parsed.data
+  const result = await createHub({
+    clusterName: cluster_name ?? null,
+    hubName: hub_name ?? null,
+    region: region ?? null,
+    dockNumber: dock_number ?? null,
+    active,
+  })
 
-  const columns = entries.map(([key]) => `"${key}"`).join(", ")
-  const placeholders = entries.map((_, index) => `$${index + 1}`).join(", ")
-  const values = entries.map(([, value]) => value)
+  invalidateCache("hubs:")
+  invalidateCache("lookup:")
 
-  const result = await query(
-    `INSERT INTO outbound_map (${columns})
-     VALUES (${placeholders})
-     RETURNING *`,
-    values
-  )
-
-  return NextResponse.json(result.rows[0])
+  return NextResponse.json(result)
 })

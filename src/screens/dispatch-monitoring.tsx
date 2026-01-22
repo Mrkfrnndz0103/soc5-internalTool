@@ -61,16 +61,14 @@ export function DispatchMonitoringPage() {
         total: rows.length,
         pending: rows.filter((d: DispatchEntry) => d.status === "Pending").length,
         ongoing: rows.filter((d: DispatchEntry) => d.status === "Ongoing").length,
-        completed: rows.filter((d: DispatchEntry) => d.status === "Completed" || d.status === "Confirmed" || d.status === "Verified").length,
+        completed: rows.filter((d: DispatchEntry) => d.status === "Confirmed").length,
       })
     }
   }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "Completed":
       case "Confirmed":
-      case "Verified":
         return <CheckCircle className="h-4 w-4 text-green-500" />
       case "Ongoing":
         return <Clock className="h-4 w-4 text-yellow-500" />
@@ -81,9 +79,7 @@ export function DispatchMonitoringPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Completed":
       case "Confirmed":
-      case "Verified":
         return "bg-green-100 text-green-700 border-green-200"
       case "Ongoing":
         return "bg-yellow-100 text-yellow-700 border-yellow-200"

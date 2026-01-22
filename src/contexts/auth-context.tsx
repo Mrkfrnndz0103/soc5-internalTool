@@ -6,7 +6,7 @@ import { authApi } from "@/lib/api"
 export interface User {
   ops_id?: string
   name: string
-  role: "FTE" | "Backroom" | "Data Team" | "Admin"
+  role: "FTE" | "Backroom" | "Data Team" | "Admin" | "Processor"
   email?: string
   department?: string
 }

@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
+import { withCache } from "@/lib/server-cache"
+import { KPI_CACHE_CONTROL, KPI_CACHE_MS } from "@/lib/cache-control"
+import { listKpiMdt } from "@/server/repositories/kpi"
+
+type MdtRow = {
+  date: Date | null
+  mdtScore: unknown
+  target: unknown
+}
 
 export const GET = withRequestLogging("/api/kpi/mdt", async (request: Request) => {
   const session = await getSession()
@@ -22,47 +30,20 @@ export const GET = withRequestLogging("/api/kpi/mdt", async (request: Request) =
     : DEFAULT_LIMIT
   const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0
 
-  const filters: string[] = []
-  const params: string[] = []
-
-  if (startDate) {
-    params.push(startDate)
-    filters.push(`date >= $${params.length}`)
-  }
-
-  if (endDate) {
-    params.push(endDate)
-    filters.push(`date <= $${params.length}`)
-  }
-
-  const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : ""
-
-  const countResult = await query(
-    `SELECT COUNT(*)::int AS total
-     FROM kpi_mdt
-     ${whereClause}`,
-    params
-  )
-
-  const result = await query(
-    `SELECT date, mdt_score, target
-     FROM kpi_mdt
-     ${whereClause}
-     ORDER BY date DESC
-     LIMIT $${params.length + 1}
-     OFFSET $${params.length + 2}`,
-    [...params, limit, offset]
-  )
-
-  return NextResponse.json(
-    {
-      rows: result.rows,
-      total: countResult.rows[0]?.total || 0,
+  const cacheKey = `kpi:mdt:${startDate ?? "all"}:${endDate ?? "all"}:${limit}:${offset}`
+  const payload = await withCache(cacheKey, KPI_CACHE_MS, async () => {
+    const result = await listKpiMdt({ startDate, endDate, limit, offset })
+    return {
+      rows: (result.rows as MdtRow[]).map((row) => ({
+        date: row.date,
+        mdt_score: row.mdtScore === null ? null : Number(row.mdtScore),
+        target: row.target === null ? null : Number(row.target),
+      })),
+      total: result.total,
       limit,
       offset,
-    },
-    {
-    headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
     }
-  )
+  })
+
+  return NextResponse.json(payload, { headers: { "Cache-Control": KPI_CACHE_CONTROL } })
 })

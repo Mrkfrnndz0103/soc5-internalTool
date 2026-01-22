@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
+import { withCache } from "@/lib/server-cache"
+import { KPI_CACHE_CONTROL, KPI_CACHE_MS } from "@/lib/cache-control"
+import { listKpiIntraday } from "@/server/repositories/kpi"
+
+type IntradayRow = {
+  date: Date | null
+  hour: number | null
+  dispatches: unknown
+  volume: unknown
+  timestamp: Date | null
+}
 
 export const GET = withRequestLogging("/api/kpi/intraday", async (request: Request) => {
   const session = await getSession()
@@ -21,42 +31,22 @@ export const GET = withRequestLogging("/api/kpi/intraday", async (request: Reque
     : DEFAULT_LIMIT
   const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0
 
-  const filters: string[] = []
-  const params: string[] = []
-
-  if (date) {
-    params.push(date)
-    filters.push(`date = $${params.length}`)
-  }
-
-  const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : ""
-
-  const countResult = await query(
-    `SELECT COUNT(*)::int AS total
-     FROM kpi_intraday
-     ${whereClause}`,
-    params
-  )
-
-  const result = await query(
-    `SELECT date, hour, dispatches, volume, timestamp
-     FROM kpi_intraday
-     ${whereClause}
-     ORDER BY timestamp DESC
-     LIMIT $${params.length + 1}
-     OFFSET $${params.length + 2}`,
-    [...params, limit, offset]
-  )
-
-  return NextResponse.json(
-    {
-      rows: result.rows,
-      total: countResult.rows[0]?.total || 0,
+  const cacheKey = `kpi:intraday:${date ?? "all"}:${limit}:${offset}`
+  const payload = await withCache(cacheKey, KPI_CACHE_MS, async () => {
+    const result = await listKpiIntraday({ date, limit, offset })
+    return {
+      rows: (result.rows as IntradayRow[]).map((row) => ({
+        date: row.date,
+        hour: row.hour,
+        dispatches: row.dispatches === null ? null : Number(row.dispatches),
+        volume: row.volume === null ? null : Number(row.volume),
+        timestamp: row.timestamp,
+      })),
+      total: result.total,
       limit,
       offset,
-    },
-    {
-    headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
     }
-  )
+  })
+
+  return NextResponse.json(payload, { headers: { "Cache-Control": KPI_CACHE_CONTROL } })
 })

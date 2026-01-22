@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { withRequestLogging } from "@/lib/request-context"
 import { enforceSessionRateLimit } from "@/lib/rate-limit"
 import { parseRequestJson } from "@/lib/validation"
+import { confirmDispatchReports } from "@/server/repositories/dispatch-reports"
 import { z } from "zod"
 
 const verifySchema = z
@@ -44,16 +44,7 @@ export const POST = withRequestLogging("/api/dispatch/verify", async (request: R
   if (parsed.errorResponse) return parsed.errorResponse
   const rows = parsed.data.rows
   const verifiedBy = session.user.ops_id
-
-  await query(
-    `UPDATE dispatch_reports
-     SET status = 'Confirmed',
-         confirmed_by_ops_id = $2,
-         confirmed_at = NOW(),
-         status_updated_at = NOW()
-     WHERE dispatch_id::text = ANY($1::text[])`,
-    [rows, verifiedBy]
-  )
+  await confirmDispatchReports(rows, verifiedBy)
 
   const results = rows.map((rowId: string) => ({
     dispatch_ids: [rowId],

@@ -713,21 +713,32 @@ export function DispatchReportTable() {
     const response = await dispatchApi.submitRows(payloadRows, submittedBy)
 
     if (response.error) {
-      const detailRows = Array.isArray(response.details?.results)
-        ? response.details.results
-        : Array.isArray(response.details?.rows)
-          ? response.details.rows
+      const details =
+        response.details && typeof response.details === "object"
+          ? (response.details as Record<string, unknown>)
+          : undefined
+      const detailRows: Array<Record<string, unknown>> = Array.isArray(details?.results)
+        ? (details?.results as Array<Record<string, unknown>>)
+        : Array.isArray(details?.rows)
+          ? (details?.rows as Array<Record<string, unknown>>)
           : []
-      const errorResults: SubmitRowResult[] = detailRows.map((detail: any) => ({
-        rowIndex:
+      const errorResults: SubmitRowResult[] = detailRows.map((detail) => {
+        const rowIndex =
           typeof detail.rowIndex === "number"
             ? detail.rowIndex
             : typeof detail.index === "number"
               ? detail.index
-              : 0,
-        status: "error",
-        errors: detail.errors,
-      }))
+              : 0
+        const errors =
+          detail.errors && typeof detail.errors === "object"
+            ? (detail.errors as Record<string, string>)
+            : undefined
+        return {
+          rowIndex,
+          status: "error",
+          errors,
+        }
+      })
       setSubmitState({
         status: "error",
         message: response.error,
@@ -744,10 +755,13 @@ export function DispatchReportTable() {
     }
 
     const results: SubmitRowResult[] = Array.isArray(response.data?.results)
-      ? response.data?.results.map((result: any) => ({
+      ? (response.data?.results as Array<Record<string, unknown>>).map((result) => ({
           rowIndex: typeof result.rowIndex === "number" ? result.rowIndex : 0,
           status: result.status === "created" ? "created" : "error",
-          errors: result.errors,
+          errors:
+            result.errors && typeof result.errors === "object"
+              ? (result.errors as Record<string, string>)
+              : undefined,
         }))
       : payloadRows.map((_, index) => ({ rowIndex: index, status: "created" }))
 

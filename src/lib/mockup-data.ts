@@ -4,7 +4,7 @@
 export interface MockUser {
   ops_id: string
   name: string
-  role: "FTE" | "Backroom" | "Data Team" | "Admin"
+  role: "FTE" | "Backroom" | "Data Team" | "Admin" | "Processor"
   email?: string
   password: string // In production, never store passwords in frontend!
 }

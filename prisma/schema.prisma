@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  opsId      String  @id @map("ops_id")
+  name       String
+  role       String
+  department String?
+  isFte      Boolean @default(false) @map("is_fte")
+  email      String?
+
+  authSessions   AuthSession[]
+
+  @@map("users")
+}
+
+model OutboundMap {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clusterName String? @map("cluster_name")
+  hubName     String? @map("hub_name")
+  region      String?
+  dockNumber  String? @map("dock_number")
+  active      Boolean @default(true)
+
+  @@index([active, hubName], map: "idx_outbound_map_active_hub_name")
+  @@map("outbound_map")
+}
+
+model SeatalkSession {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId     String   @unique @map("session_id")
+  email         String?
+  authenticated Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+  authSessionId String?  @db.Uuid @map("auth_session_id")
+
+  authSession AuthSession? @relation(fields: [authSessionId], references: [sessionId])
+
+  @@map("seatalk_sessions")
+}
+
+model AuthSession {
+  sessionId  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid @map("session_id")
+  opsId      String   @map("ops_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  expiresAt  DateTime @map("expires_at")
+  lastSeenAt DateTime? @map("last_seen_at")
+
+  user      User              @relation(fields: [opsId], references: [opsId], onDelete: Cascade)
+  rateLimit SessionRateLimit?
+  seatalkSessions SeatalkSession[]
+
+  @@index([opsId], map: "idx_auth_sessions_ops_id")
+  @@index([expiresAt], map: "idx_auth_sessions_expires_at")
+  @@map("auth_sessions")
+}
+
+model SessionRateLimit {
+  sessionId String   @id @db.Uuid @map("session_id")
+  count     Int      @default(0)
+  expiresAt DateTime @map("expires_at")
+
+  session AuthSession @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
+
+  @@index([expiresAt], map: "idx_session_rate_limits_expires_at")
+  @@map("session_rate_limits")
+}
+
+model DispatchReport {
+  dispatchId           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid @map("dispatch_id")
+  clusterName          String?  @map("cluster_name")
+  stationName          String?  @map("station_name")
+  region               String?
+  status               String   @default("Pending")
+  lhTripNumber         String?  @map("lh_trip_number")
+  actualDockedTime     DateTime? @map("actual_docked_time")
+  actualDepartTime     DateTime? @map("actual_depart_time")
+  processorName        String?  @map("processor_name")
+  plateNumber          String?  @map("plate_number")
+  submittedByOpsId     String?  @map("submitted_by_ops_id")
+  assignedDataTeamOpsId String? @map("assigned_data_team_ops_id")
+  acknowledgedByOpsId  String?  @map("acknowledged_by_ops_id")
+  acknowledgedAt       DateTime? @map("acknowledged_at")
+  confirmedByOpsId     String?  @map("confirmed_by_ops_id")
+  confirmedAt          DateTime? @map("confirmed_at")
+  pendingEditReason    String?  @map("pending_edit_reason")
+  editCount            Int      @default(0) @map("edit_count")
+  statusUpdatedAt      DateTime @default(now()) @map("status_updated_at")
+  createdAt            DateTime @default(now()) @map("created_at")
+  countOfTo            String?  @map("count_of_to")
+  totalOidLoaded       Int?     @map("total_oid_loaded")
+  dockNumber           String?  @map("dock_number")
+  dockConfirmed        Boolean  @default(false) @map("dock_confirmed")
+  fleetSize            String?  @map("fleet_size")
+  assignedOpsId        String?  @map("assigned_ops_id")
+
+  edits DispatchReportEdit[]
+
+  @@index([status], map: "idx_dispatch_reports_status")
+  @@index([createdAt], map: "idx_dispatch_reports_created_at")
+  @@index([region], map: "idx_dispatch_reports_region")
+  @@index([createdAt, status, region], map: "idx_dispatch_reports_created_status_region")
+  @@map("dispatch_reports")
+}
+
+model DispatchReportEdit {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dispatchId  String   @db.Uuid @map("dispatch_id")
+  editorOpsId String?  @map("editor_ops_id")
+  editReason  String?  @map("edit_reason")
+  editRemarks String?  @map("edit_remarks")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  dispatch DispatchReport @relation(fields: [dispatchId], references: [dispatchId], onDelete: Cascade)
+
+  @@index([dispatchId], map: "idx_dispatch_report_edits_dispatch_id")
+  @@map("dispatch_report_edits")
+}
+
+model DispatchGoogleSheetRow {
+  rowKey            String   @id @map("row_key")
+  dispatchDate      DateTime? @db.Date @map("dispatch_date")
+  origin            String?
+  toDestStationName String?  @map("to_dest_station_name")
+  tripNumber        String   @map("trip_number")
+  toNumber          String?  @map("to_number")
+  toParcelQuantity  Int?     @map("to_parcel_quantity")
+  loadedTimestamp   DateTime? @map("loaded_timestamp")
+  operatorRaw       String?  @map("operator_raw")
+  operatorOpsId     String?  @map("operator_ops_id")
+  operatorName      String?  @map("operator_name")
+  departureTimestamp DateTime? @map("departure_timestamp")
+  truckSize         String?  @map("truck_size")
+  vehicleNumber     String?  @map("vehicle_number")
+  driverName        String?  @map("driver_name")
+  rawPayload        Json?    @map("raw_payload")
+  updatedAt         DateTime @default(now()) @map("updated_at")
+
+  @@index([tripNumber], map: "idx_dispatch_google_sheet_rows_trip_number")
+  @@index([dispatchDate], map: "idx_dispatch_google_sheet_rows_dispatch_date")
+  @@map("dispatch_google_sheet_rows")
+}
+
+model KpiMdt {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date      DateTime @db.Date
+  mdtScore  Decimal? @map("mdt_score")
+  target    Decimal?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([date], map: "idx_kpi_mdt_date")
+  @@map("kpi_mdt")
+}
+
+model KpiWorkstation {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date        DateTime @db.Date
+  workstation String?
+  utilization Decimal?
+  efficiency  Decimal?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([date], map: "idx_kpi_workstation_date")
+  @@map("kpi_workstation")
+}
+
+model KpiProductivity {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date         DateTime? @db.Date
+  dailyAverage Decimal? @map("daily_average")
+  weeklyAverage Decimal? @map("weekly_average")
+  monthlyTotal Decimal? @map("monthly_total")
+  trend        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([date], map: "idx_kpi_productivity_date")
+  @@map("kpi_productivity")
+}
+
+model KpiIntraday {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date       DateTime? @db.Date
+  hour       Int?
+  dispatches Int?
+  volume     Int?
+  timestamp  DateTime?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([date], map: "idx_kpi_intraday_date")
+  @@map("kpi_intraday")
+}

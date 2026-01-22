@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useTheme } from "@/components/theme-provider"
-import { themePresets } from "@/theme/presets"
+import { themePresets, type ThemePreset } from "@/theme/presets"
 
 export function ThemePresetSelector() {
   const { themePreset, setThemePreset } = useTheme()
@@ -34,7 +34,7 @@ export function ThemePresetSelector() {
         {Object.entries(themePresets).map(([key, preset]) => (
           <DropdownMenuItem
             key={key}
-            onClick={() => setThemePreset(key as any)}
+            onClick={() => setThemePreset(key as ThemePreset)}
             className={themePreset === key ? "bg-accent" : ""}
           >
             {preset.name}
