@@ -13,7 +13,7 @@ This review summarizes potential errors, risks, and improvement opportunities ob
 
 2. **Dispatch submission validates fields that are never persisted**
    - UI submits and API validates `count_of_to`, `total_oid_loaded`, `dock_number`, `dock_confirmed`, `fleet_size`, `assigned_ops_id`.
-   - `dispatch_reports` table (per `db/migrations/002_dispatch_reports.sql`) does not include those columns, and insert only stores a subset.
+   - `dispatch_reports` schema (per `prisma/schema.prisma`) does not include those columns, and insert only stores a subset.
    - Risk: data loss and inconsistent behavior between UI and backend.
 
 3. **Hub mutation endpoints lack role-based authorization**
@@ -35,10 +35,6 @@ This review summarizes potential errors, risks, and improvement opportunities ob
 7. **Stray glyph in dispatch monitoring UI**
    - `src/screens/dispatch-monitoring.tsx` contains a corrupted delimiter string.
    - Risk: user-facing UI artifact, possible encoding issue.
-
-8. **Duplicate migration prefixes**
-   - `db/migrations/002_auth_sessions.sql` and `db/migrations/002_dispatch_reports.sql` share the same prefix.
-   - Risk: confusion when tracking migration order; minor operational risk.
 
 ## Fix Recommendations
 
@@ -67,9 +63,6 @@ This review summarizes potential errors, risks, and improvement opportunities ob
 
 7. **Clean UI artifacts**
    - Replace corrupted delimiter string in `dispatch-monitoring.tsx` with a plain separator.
-
-8. **Standardize migration naming**
-   - Rename duplicate-numbered migrations and adjust documentation to avoid ordering ambiguity.
 
 ## Suggestions (Quality, Reliability, and Maintainability)
 

@@ -242,7 +242,7 @@ export const hubApi = {
   },
 }
 
-// KPI & Compliance APIs (Google Sheets data synced to PostgreSQL)
+// KPI & Compliance APIs (Google Sheets data synced to SQLite)
 export const kpiApi = {
   async getMDT(params?: { startDate?: string; endDate?: string; limit?: number; offset?: number }) {
     return request<ListResponse<{

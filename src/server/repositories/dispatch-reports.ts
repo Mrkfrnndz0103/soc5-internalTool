@@ -7,6 +7,7 @@ import {
   type DispatchField,
   serializeDispatchRow,
 } from "@/server/repositories/dispatch-report-fields"
+export { DEFAULT_DISPATCH_FIELDS, DISPATCH_FIELD_MAP, type DispatchField } from "@/server/repositories/dispatch-report-fields"
 
 export type DispatchFilters = {
   status?: string

@@ -1,6 +1,6 @@
 # Render Deployment Guide (No Docker)
 
-This project targets Render’s **Node** runtime (no Docker). Use the steps below to deploy safely and keep the service awake.
+This project targets Render's **Node** runtime (no Docker). Use the steps below to deploy safely and keep the service awake.
 
 ## 1) Service Setup
 
@@ -8,28 +8,27 @@ This project targets Render’s **Node** runtime (no Docker). Use the steps belo
 - **Build command:** `npm run prisma:generate && npm run build`
 - **Start command:** `npm run start`
 
-## 2) Database Migrations (SQL)
+## 2) Database Migrations (Prisma)
 
-Schema changes are tracked in `db/migrations`.
+Schema changes are tracked in `prisma/schema.prisma`.
 
 On deploy:
-1) Set `DATABASE_URL` and `DATABASE_SSL`.
-2) Run migrations:
+1) Set `DATABASE_URL`.
+2) Apply the schema:
    ```bash
-   npm run db:migrate
+   npx prisma db push
    ```
 3) Ensure Prisma client is generated:
    ```bash
    npm run prisma:generate
    ```
 
-> Tip: You can add a Render “Shell” command or a one-time manual run to execute migrations after deploy.
+> Tip: You can add a Render "Shell" command or a one-time manual run to apply the schema after deploy.
 
 ## 3) Required Environment Variables
 
 Required:
 - `DATABASE_URL`
-- `DATABASE_SSL` (true/false)
 - `SESSION_TTL_HOURS`
 - `SESSION_REFRESH_MINUTES`
 - `COOKIE_SECURE` (true in production)
@@ -54,13 +53,13 @@ Optional:
 - `NEXT_PUBLIC_SEATALK_ENABLED`
 - `NEXT_PUBLIC_MODULES_DISABLED`
 
-## 4) Keep‑Awake Ping (Prevent Render Sleep)
+## 4) Keep-Awake Ping (Prevent Render Sleep)
 
 Use a **Render Cron Job** or an external uptime monitor to hit a lightweight endpoint.
 
 Preferred (Render Cron Job):
 - Endpoint: `GET /api/ping` or `GET /api/health/liveness`
-- Schedule: every 10–15 minutes
+- Schedule: every 10-15 minutes
 
 Alternative (External Monitor):
 - Use a service like UptimeRobot to ping the same endpoint.

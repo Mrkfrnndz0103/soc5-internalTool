@@ -1,2 +1,1 @@
-ALTER TABLE users
-  DROP COLUMN IF EXISTS password_hash;
+-- Deprecated: SQLite uses Prisma migrations/db push instead.

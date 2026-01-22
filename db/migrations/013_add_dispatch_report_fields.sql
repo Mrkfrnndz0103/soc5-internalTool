@@ -1,7 +1,1 @@
-ALTER TABLE dispatch_reports
-  ADD COLUMN IF NOT EXISTS count_of_to TEXT,
-  ADD COLUMN IF NOT EXISTS total_oid_loaded INTEGER,
-  ADD COLUMN IF NOT EXISTS dock_number TEXT,
-  ADD COLUMN IF NOT EXISTS dock_confirmed BOOLEAN NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS fleet_size TEXT,
-  ADD COLUMN IF NOT EXISTS assigned_ops_id TEXT;
+-- Deprecated: SQLite uses Prisma migrations/db push instead.

@@ -32,9 +32,9 @@ The system must be:
 - **Tailwind CSS**
 
 ### Database
-- **PostgreSQL**
+- **SQLite**
 - **Prisma ORM**
-- SQL migrations in `db/migrations` (source of truth)
+- Prisma schema in `prisma/schema.prisma` (source of truth)
 - Prisma Client generated from `prisma/schema.prisma`
 
 ### Validation & Safety
@@ -64,8 +64,6 @@ The system must be:
 internal-tool/
 |- prisma/
 |  |- schema.prisma
-|- db/
-|  |- migrations/
 |- src/
 |  |- app/
 |- .env
@@ -101,7 +99,7 @@ Core tables:
 ### Phase 0 — Foundation (IN PROGRESS)
 - Node, Git, VS Code setup (user-level)
 - Next.js project creation
-- Prisma + PostgreSQL integration
+- Prisma + SQLite integration
 - Database schema defined
 - ESLint, Prettier, Jest configured
 

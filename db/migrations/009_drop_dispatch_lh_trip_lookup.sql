@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS dispatch_lh_trip_lookup;
+-- Deprecated: SQLite uses Prisma migrations/db push instead.

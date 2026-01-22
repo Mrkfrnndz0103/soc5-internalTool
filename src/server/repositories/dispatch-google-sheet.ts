@@ -1,4 +1,5 @@
 import "server-only"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/server/db/prisma"
 import type { JsonValue } from "@/lib/json-types"
 
@@ -27,8 +28,9 @@ export async function upsertDispatchSheetRows(rows: DispatchSheetRowInput[]) {
   for (let start = 0; start < rows.length; start += batchSize) {
     const chunk = rows.slice(start, start + batchSize)
     await prisma.$transaction(
-      chunk.map((row) =>
-        prisma.dispatchGoogleSheetRow.upsert({
+      chunk.map((row) => {
+        const rawPayloadValue = row.rawPayload ?? Prisma.DbNull
+        return prisma.dispatchGoogleSheetRow.upsert({
           where: { rowKey: row.rowKey },
           create: {
             rowKey: row.rowKey,
@@ -46,7 +48,7 @@ export async function upsertDispatchSheetRows(rows: DispatchSheetRowInput[]) {
             truckSize: row.truckSize ?? null,
             vehicleNumber: row.vehicleNumber ?? null,
             driverName: row.driverName ?? null,
-            rawPayload: row.rawPayload,
+            rawPayload: rawPayloadValue,
             updatedAt: new Date(),
           },
           update: {
@@ -64,11 +66,11 @@ export async function upsertDispatchSheetRows(rows: DispatchSheetRowInput[]) {
             truckSize: row.truckSize ?? null,
             vehicleNumber: row.vehicleNumber ?? null,
             driverName: row.driverName ?? null,
-            rawPayload: row.rawPayload,
+            rawPayload: rawPayloadValue,
             updatedAt: new Date(),
           },
         })
-      )
+      })
     )
   }
   return rows.length

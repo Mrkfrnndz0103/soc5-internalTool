@@ -56,7 +56,7 @@ Step 2 - Configure public variables
 2) Use your real values (placeholders will cause runtime failures).
 
 Step 3 - Configure server-only variables
-1) Add `DATABASE_URL` for PostgreSQL connections.
+1) Add `DATABASE_URL` for SQLite connections.
 2) Keep server-only values without the `NEXT_PUBLIC_` prefix.
 
 Tests for Phase 2
@@ -220,7 +220,7 @@ Tests for Phase 8
 
 ---
 
-## Phase 9 - Database Integration (PostgreSQL + pgAdmin4)
+## Phase 9 - Database Integration (SQLite + Prisma)
 
 Goal: Connect real data to the UI.
 
@@ -233,7 +233,7 @@ Step 2 - Build a server-side data layer
 2) Define connection pooling and query helpers.
 
 Step 3 - Replace legacy data access
-1) Update API methods to call PostgreSQL API routes.
+1) Update API methods to call the Prisma-backed API routes.
 2) Keep the API method names consistent.
 
 Tests for Phase 9

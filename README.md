@@ -81,7 +81,7 @@ Automation
 ## Architecture at a glance
 
 - Frontend: Next.js App Router with client components for interactive sections.
-- Backend: PostgreSQL with Prisma Client (no raw SQL in request handlers).
+- Backend: SQLite with Prisma Client (no raw SQL in request handlers).
 - Auth: Role-aware session handling with secure tokens.
 - Observability: Health endpoint and structured logging hooks.
 
@@ -94,9 +94,9 @@ Automation
    npm install
    ```
 2) Configure `.env` (see `.env.example`).
-3) Run SQL migrations:
+3) Create the SQLite schema:
    ```bash
-   npm run db:migrate
+   npx prisma db push
    ```
 4) Generate Prisma client:
    ```bash

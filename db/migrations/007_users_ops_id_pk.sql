@@ -1,15 +1,1 @@
-ALTER TABLE users
-  DROP CONSTRAINT IF EXISTS users_pkey;
-
-ALTER TABLE users
-  DROP COLUMN IF EXISTS id,
-  DROP COLUMN IF EXISTS created_at;
-
-ALTER TABLE users
-  ALTER COLUMN ops_id SET NULL;
-
-ALTER TABLE users
-  ALTER COLUMN ops_id SET NULL;
-
-ALTER TABLE users
-  ADD PRIMARY KEY (ops_id);
+-- Deprecated: SQLite uses Prisma migrations/db push instead.

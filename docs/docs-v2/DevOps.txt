@@ -31,17 +31,6 @@ Best practices:
     - Zero-downtime deployment
     - Automatic rollback on failure
 
-4. Containers (Consistency)
-Ensures the app runs the same everywhere.
-
-Tools:
-    - Docker
-
-Benefits:
-    - Same environment locally and in production
-    - Easy scaling
-    - Resource isolation
-
 5. Infrastructure as Code (Stability)
 Servers are code, not manual work.
 

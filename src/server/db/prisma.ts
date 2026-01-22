@@ -4,8 +4,11 @@ import type { Prisma } from "@prisma/client"
 import { logger } from "@/lib/logger"
 import { recordDbQuery } from "@/lib/request-context"
 
+type PrismaEvent = "query" | "error" | "warn"
+type PrismaClientWithEvents = PrismaClient<Prisma.PrismaClientOptions, PrismaEvent>
+
 type PrismaGlobal = typeof globalThis & {
-  prisma?: PrismaClient
+  prisma?: PrismaClientWithEvents
   prismaEventsAttached?: boolean
 }
 
@@ -13,7 +16,7 @@ const globalForPrisma = globalThis as PrismaGlobal
 
 const prisma =
   globalForPrisma.prisma ??
-  new PrismaClient({
+  new PrismaClient<Prisma.PrismaClientOptions, PrismaEvent>({
     log: [
       { emit: "event", level: "query" },
       { emit: "event", level: "error" },

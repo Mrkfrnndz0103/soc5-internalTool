@@ -3,8 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
 }
 
 model User {
@@ -21,7 +20,7 @@ model User {
 }
 
 model OutboundMap {
-  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id          String  @id @default(uuid())
   clusterName String? @map("cluster_name")
   hubName     String? @map("hub_name")
   region      String?
@@ -33,12 +32,12 @@ model OutboundMap {
 }
 
 model SeatalkSession {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id            String   @id @default(uuid())
   sessionId     String   @unique @map("session_id")
   email         String?
   authenticated Boolean  @default(false)
   createdAt     DateTime @default(now()) @map("created_at")
-  authSessionId String?  @db.Uuid @map("auth_session_id")
+  authSessionId String?  @map("auth_session_id")
 
   authSession AuthSession? @relation(fields: [authSessionId], references: [sessionId])
 
@@ -46,7 +45,7 @@ model SeatalkSession {
 }
 
 model AuthSession {
-  sessionId  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid @map("session_id")
+  sessionId  String   @id @default(uuid()) @map("session_id")
   opsId      String   @map("ops_id")
   createdAt  DateTime @default(now()) @map("created_at")
   expiresAt  DateTime @map("expires_at")
@@ -62,7 +61,7 @@ model AuthSession {
 }
 
 model SessionRateLimit {
-  sessionId String   @id @db.Uuid @map("session_id")
+  sessionId String   @id @map("session_id")
   count     Int      @default(0)
   expiresAt DateTime @map("expires_at")
 
@@ -73,7 +72,7 @@ model SessionRateLimit {
 }
 
 model DispatchReport {
-  dispatchId           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid @map("dispatch_id")
+  dispatchId           String   @id @default(uuid()) @map("dispatch_id")
   clusterName          String?  @map("cluster_name")
   stationName          String?  @map("station_name")
   region               String?
@@ -110,8 +109,8 @@ model DispatchReport {
 }
 
 model DispatchReportEdit {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  dispatchId  String   @db.Uuid @map("dispatch_id")
+  id          String   @id @default(uuid())
+  dispatchId  String   @map("dispatch_id")
   editorOpsId String?  @map("editor_ops_id")
   editReason  String?  @map("edit_reason")
   editRemarks String?  @map("edit_remarks")
@@ -125,7 +124,7 @@ model DispatchReportEdit {
 
 model DispatchGoogleSheetRow {
   rowKey            String   @id @map("row_key")
-  dispatchDate      DateTime? @db.Date @map("dispatch_date")
+  dispatchDate      DateTime? @map("dispatch_date")
   origin            String?
   toDestStationName String?  @map("to_dest_station_name")
   tripNumber        String   @map("trip_number")
@@ -148,8 +147,8 @@ model DispatchGoogleSheetRow {
 }
 
 model KpiMdt {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  date      DateTime @db.Date
+  id        String   @id @default(uuid())
+  date      DateTime
   mdtScore  Decimal? @map("mdt_score")
   target    Decimal?
   createdAt DateTime @default(now()) @map("created_at")
@@ -159,8 +158,8 @@ model KpiMdt {
 }
 
 model KpiWorkstation {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  date        DateTime @db.Date
+  id          String   @id @default(uuid())
+  date        DateTime
   workstation String?
   utilization Decimal?
   efficiency  Decimal?
@@ -171,8 +170,8 @@ model KpiWorkstation {
 }
 
 model KpiProductivity {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  date         DateTime? @db.Date
+  id           String   @id @default(uuid())
+  date         DateTime?
   dailyAverage Decimal? @map("daily_average")
   weeklyAverage Decimal? @map("weekly_average")
   monthlyTotal Decimal? @map("monthly_total")
@@ -184,8 +183,8 @@ model KpiProductivity {
 }
 
 model KpiIntraday {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  date       DateTime? @db.Date
+  id         String   @id @default(uuid())
+  date       DateTime?
   hour       Int?
   dispatches Int?
   volume     Int?

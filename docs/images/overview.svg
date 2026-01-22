@@ -30,6 +30,6 @@
   <rect x="600" y="420" width="500" height="160" rx="16" fill="#eff6ff" stroke="#bfdbfe"/>
   <text x="620" y="460" font-family="Arial, sans-serif" font-size="16" fill="#1f2937">Platform</text>
   <text x="620" y="490" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">Next.js App Router</text>
-  <text x="620" y="510" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">PostgreSQL + pgAdmin4</text>
+  <text x="620" y="510" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">SQLite + Prisma</text>
   <text x="620" y="530" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">Role-based access</text>
 </svg>

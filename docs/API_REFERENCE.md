@@ -56,6 +56,6 @@ All methods return:
 
 ## Notes
 
-This layer targets PostgreSQL-backed API routes. Client method signatures remain stable while the backend uses `DATABASE_URL`.
+This layer targets SQLite-backed API routes. Client method signatures remain stable while the backend uses `DATABASE_URL`.
 
 Last Updated: 2026-01-22

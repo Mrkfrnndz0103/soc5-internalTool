@@ -1,3 +1,1 @@
-ALTER TABLE users
-  DROP COLUMN IF EXISTS is_first_time,
-  DROP COLUMN IF EXISTS must_change_password;
+-- Deprecated: SQLite uses Prisma migrations/db push instead.

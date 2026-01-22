@@ -8,7 +8,7 @@ The SOC5 Outbound Internal Tool is a Next.js full-stack application designed to 
 - App Router drives route structure and layout composition.
 - Client components handle interactive features (tables, dashboards, modals).
 - API layer abstracts database access and business logic.
-- PostgreSQL is the system of record for all operational data.
+- SQLite is the system of record for all operational data.
 
 ## Strengths
 
