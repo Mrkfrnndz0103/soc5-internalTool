@@ -125,6 +125,8 @@ npm test
 npm run build
 ```
 
+CI uses SQLite with `DATABASE_URL=file:./dev.db`. If integration tests need a schema, set `RUN_DB_SETUP=true` in the workflow to run `npx prisma db push`.
+
 ## Status
 
 - Core UI and navigation are in place.
