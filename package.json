@@ -75,7 +75,7 @@
     "jsdom": "^27.3.0",
     "postcss": "^8.4.33",
     "prisma": "^7.3.0",
-    "tailwindcss": "^3.4.1",
+    "tailwindcss": "^4.1.18",
     "typescript": "^5.3.3",
     "vercel": "^50.3.2"
   }
